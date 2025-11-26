@@ -5,6 +5,8 @@ import type React from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Send, Mic, Camera, ArrowLeft, MicOff, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface Message {
   id: string
@@ -389,7 +391,33 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
                     className="max-w-full h-auto rounded-lg mb-2 max-h-40 object-cover"
                   />
                 )}
-                <p className="text-sm leading-relaxed">{message.content}</p>
+                <div className="text-sm leading-relaxed markdown-content">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({ children }) => <p className="mb-2.5 last:mb-0 whitespace-pre-wrap break-words">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-outside mb-3 space-y-1.5 ml-4 pl-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-outside mb-3 space-y-1.5 ml-4 pl-1">{children}</ol>,
+                      li: ({ children }) => <li className="leading-relaxed pl-1">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      h1: ({ children }) => <h1 className="text-base font-semibold mb-2 mt-3 first:mt-0">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-sm font-semibold mb-2 mt-3 first:mt-0">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-sm font-semibold mb-1.5 mt-2 first:mt-0">{children}</h3>,
+                      code: ({ children, className }) => {
+                        const isInline = !className
+                        return isInline ? (
+                          <code className="bg-muted/80 px-1.5 py-0.5 rounded text-xs font-mono break-all">{children}</code>
+                        ) : (
+                          <code className="block bg-muted/80 p-2 rounded text-xs font-mono overflow-x-auto mb-2 whitespace-pre">{children}</code>
+                        )
+                      },
+                      blockquote: ({ children }) => <blockquote className="border-l-2 border-muted-foreground/30 pl-3 ml-2 italic my-2">{children}</blockquote>,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
                 <p
                   className={`text-[10px] mt-1.5 ${
                     message.type === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
