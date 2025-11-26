@@ -3,8 +3,15 @@
 import type React from "react"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Send, Mic, Camera, ArrowLeft, MicOff, X } from "lucide-react"
+import { Send, Mic, Camera, ArrowLeft, MicOff, X, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -47,10 +54,12 @@ export default function ChatInterface({ onNavigate }: ChatInterfaceProps) {
   const [isTyping, setIsTyping] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [showImagePicker, setShowImagePicker] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -330,10 +339,36 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
   }
 
   const handlePhotoSelect = () => {
-    fileInputRef.current?.click()
+    setShowImagePicker(true)
+  }
+
+  const handleTakePhoto = () => {
+    setShowImagePicker(false)
+    setTimeout(() => {
+      cameraInputRef.current?.click()
+    }, 100)
+  }
+
+  const handleChooseFromGallery = () => {
+    setShowImagePicker(false)
+    setTimeout(() => {
+      fileInputRef.current?.click()
+    }, 100)
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+    event.target.value = ""
+  }
+
+  const handleCameraChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       const reader = new FileReader()
@@ -475,15 +510,64 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
         </div>
       )}
 
-      {/* Hidden file input */}
+      {/* Hidden file input for gallery */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {/* Hidden file input for camera */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleCameraChange}
+      />
+
+      {/* Image picker dialog */}
+      <Dialog open={showImagePicker} onOpenChange={setShowImagePicker}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Image</DialogTitle>
+            <DialogDescription>
+              Choose how you want to add an image
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              onClick={handleTakePhoto}
+              className="w-full h-14 flex items-center justify-start gap-3 text-left"
+              variant="outline"
+            >
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
+                <Camera className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="font-semibold">Take Photo</span>
+                <span className="text-xs text-muted-foreground">Use your camera to capture a new photo</span>
+              </div>
+            </Button>
+            <Button
+              onClick={handleChooseFromGallery}
+              className="w-full h-14 flex items-center justify-start gap-3 text-left"
+              variant="outline"
+            >
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
+                <ImageIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="font-semibold">Choose from Gallery</span>
+                <span className="text-xs text-muted-foreground">Select an existing photo from your device</span>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Selected image preview */}
       {selectedImage && (
