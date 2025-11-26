@@ -364,10 +364,7 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
       reader.onloadend = () => {
         const imageData = reader.result as string
         setSelectedImage(imageData)
-        // If onImageSelect is provided, navigate to camera tab with image
-        if (onImageSelect) {
-          onImageSelect(imageData)
-        }
+        // Image stays in chat, no navigation to Scan tab
       }
       reader.readAsDataURL(file)
     }
@@ -381,10 +378,7 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
       reader.onloadend = () => {
         const imageData = reader.result as string
         setSelectedImage(imageData)
-        // If onImageSelect is provided, navigate to camera tab with image
-        if (onImageSelect) {
-          onImageSelect(imageData)
-        }
+        // Image stays in chat, no navigation to Scan tab
       }
       reader.readAsDataURL(file)
     }

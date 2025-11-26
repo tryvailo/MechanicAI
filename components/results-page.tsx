@@ -80,10 +80,6 @@ export default function ResultsPage() {
         {currentPage === "chat" && (
           <ChatInterface 
             onNavigate={handleTabChange}
-            onImageSelect={(image) => {
-              setSelectedImage(image)
-              handleTabChange("camera")
-            }}
           />
         )}
         {currentPage === "history" && <HistoryScreen onNavigate={handleTabChange} />}
