@@ -24,10 +24,11 @@ interface Message {
 }
 
 interface ChatInterfaceProps {
-  onNavigate: (page: "camera" | "results" | "chat" | "history") => void
+  onNavigate?: (page: "camera" | "results" | "chat" | "history") => void
+  onImageSelect?: (image: string) => void
 }
 
-export default function ChatInterface({ onNavigate }: ChatInterfaceProps) {
+export default function ChatInterface({ onNavigate, onImageSelect }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -361,7 +362,12 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
     if (file) {
       const reader = new FileReader()
       reader.onloadend = () => {
-        setSelectedImage(reader.result as string)
+        const imageData = reader.result as string
+        setSelectedImage(imageData)
+        // If onImageSelect is provided, navigate to camera tab with image
+        if (onImageSelect) {
+          onImageSelect(imageData)
+        }
       }
       reader.readAsDataURL(file)
     }
@@ -373,7 +379,12 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
     if (file) {
       const reader = new FileReader()
       reader.onloadend = () => {
-        setSelectedImage(reader.result as string)
+        const imageData = reader.result as string
+        setSelectedImage(imageData)
+        // If onImageSelect is provided, navigate to camera tab with image
+        if (onImageSelect) {
+          onImageSelect(imageData)
+        }
       }
       reader.readAsDataURL(file)
     }

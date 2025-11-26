@@ -14,6 +14,7 @@ interface ScrollPosition {
 
 export default function ResultsPage() {
   const [currentPage, setCurrentPage] = useState<PageTab>("chat")
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [scrollPositions, setScrollPositions] = useState<ScrollPosition>({
     camera: 0,
     results: 0,
@@ -68,9 +69,23 @@ export default function ResultsPage() {
         }}
         onLoad={() => restoreScrollPosition(currentPage)}
       >
-        {currentPage === "camera" && <CameraScanner onNavigate={handleTabChange} />}
+        {currentPage === "camera" && (
+          <CameraScanner 
+            onNavigate={handleTabChange} 
+            selectedImage={selectedImage}
+            onImageClear={() => setSelectedImage(null)}
+          />
+        )}
         {currentPage === "results" && <AnalysisResults onNavigate={handleTabChange} />}
-        {currentPage === "chat" && <ChatInterface onNavigate={handleTabChange} />}
+        {currentPage === "chat" && (
+          <ChatInterface 
+            onNavigate={handleTabChange}
+            onImageSelect={(image) => {
+              setSelectedImage(image)
+              handleTabChange("camera")
+            }}
+          />
+        )}
         {currentPage === "history" && <HistoryScreen onNavigate={handleTabChange} />}
       </div>
 

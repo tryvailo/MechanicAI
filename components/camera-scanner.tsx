@@ -4,13 +4,15 @@ import type React from "react"
 
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Zap, ImageIcon, Mic, Camera, MicOff, Focus, Crosshair } from "lucide-react"
+import { Zap, ImageIcon, Mic, Camera, MicOff, Focus, Crosshair, X } from "lucide-react"
 
 interface CameraScannerProps {
   onNavigate?: (tab: "camera" | "results" | "chat" | "history") => void
+  selectedImage?: string | null
+  onImageClear?: () => void
 }
 
-export default function CameraScanner({ onNavigate }: CameraScannerProps) {
+export default function CameraScanner({ onNavigate, selectedImage, onImageClear }: CameraScannerProps) {
   const [flashOn, setFlashOn] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
@@ -88,33 +90,70 @@ export default function CameraScanner({ onNavigate }: CameraScannerProps) {
       {/* Camera view area - fills available space above bottom sheet */}
       <div className="absolute inset-0 bottom-[260px]">
         <div className="h-full w-full overflow-hidden">
-          <div className="h-full w-full bg-gradient-to-b from-neutral-900 via-neutral-800 to-neutral-900 relative">
-            {/* Subtle vignette effect */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
-            {/* Center focus area with animated border */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative w-64 h-64 md:w-80 md:h-80">
-                {/* Animated corner brackets */}
-                <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-primary/80 rounded-tl-lg" />
-                <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-primary/80 rounded-tr-lg" />
-                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-primary/80 rounded-bl-lg" />
-                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-primary/80 rounded-br-lg" />
-                {/* Crosshair in center */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Crosshair className="w-8 h-8 text-primary/60 animate-pulse" strokeWidth={1} />
+          {selectedImage ? (
+            // Display selected image
+            <div className="h-full w-full relative bg-black">
+              <img
+                src={selectedImage}
+                alt="Selected"
+                className="h-full w-full object-contain"
+              />
+              {/* Top controls */}
+              <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4"
+                style={{ paddingTop: `calc(env(safe-area-inset-top, 12px) + 12px)` }}
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 rounded-full bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/20 text-white"
+                  onClick={() => {
+                    onImageClear?.()
+                  }}
+                  aria-label="Clear image"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 rounded-full bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/20 text-white"
+                  onClick={() => onNavigate?.("results")}
+                  aria-label="Analyze image"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // Camera viewfinder
+            <div className="h-full w-full bg-gradient-to-b from-neutral-900 via-neutral-800 to-neutral-900 relative">
+              {/* Subtle vignette effect */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
+              {/* Center focus area with animated border */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative w-64 h-64 md:w-80 md:h-80">
+                  {/* Animated corner brackets */}
+                  <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-primary/80 rounded-tl-lg" />
+                  <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-primary/80 rounded-tr-lg" />
+                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-primary/80 rounded-bl-lg" />
+                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-primary/80 rounded-br-lg" />
+                  {/* Crosshair in center */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Crosshair className="w-8 h-8 text-primary/60 animate-pulse" strokeWidth={1} />
+                  </div>
+                  {/* Scanning line animation */}
+                  <div className="absolute inset-x-4 top-4 h-0.5 bg-gradient-to-r from-transparent via-primary/50 to-transparent animate-scan" />
                 </div>
-                {/* Scanning line animation */}
-                <div className="absolute inset-x-4 top-4 h-0.5 bg-gradient-to-r from-transparent via-primary/50 to-transparent animate-scan" />
+              </div>
+              {/* Focus indicator text */}
+              <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
+                  <Focus className="w-4 h-4 text-primary" />
+                  <span className="text-xs text-white/80 font-medium">Point camera at the issue</span>
+                </div>
               </div>
             </div>
-            {/* Focus indicator text */}
-            <div className="absolute bottom-8 left-0 right-0 flex justify-center">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
-                <Focus className="w-4 h-4 text-primary" />
-                <span className="text-xs text-white/80 font-medium">Point camera at the issue</span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
         {isCapturing && <div className="absolute inset-0 bg-white animate-fade-out z-20" />}
         {/* Top controls */}
