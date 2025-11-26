@@ -1,0 +1,547 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useRef, useEffect, useCallback } from "react"
+import { Send, Mic, Camera, ArrowLeft, MicOff, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+interface Message {
+  id: string
+  type: "user" | "assistant"
+  content: string
+  timestamp: Date
+  image?: string
+}
+
+interface ChatInterfaceProps {
+  onNavigate: (page: "camera" | "results" | "chat" | "history") => void
+}
+
+export default function ChatInterface({ onNavigate }: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      type: "assistant",
+      content: "Hello! I'm your AutoDoc AI mechanic. How can I help you today with your vehicle?",
+      timestamp: new Date(Date.now() - 10 * 60000),
+    },
+    {
+      id: "2",
+      type: "user",
+      content: "My engine is making a strange knocking sound",
+      timestamp: new Date(Date.now() - 8 * 60000),
+    },
+    {
+      id: "3",
+      type: "assistant",
+      content:
+        "Engine knocking can have several causes. Is the sound louder when accelerating or at idle? Also, when did you first notice it?",
+      timestamp: new Date(Date.now() - 7 * 60000),
+    },
+  ])
+
+  const [input, setInput] = useState("")
+  const [isTyping, setIsTyping] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const suggestedQuestions = ["Engine maintenance tips", "Battery warning light", "Oil change frequency"]
+
+  useEffect(() => {
+    const scrollToBottom = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+    scrollToBottom()
+  }, [messages])
+
+  const handleInputFocus = useCallback(() => {
+    // Scroll input into view when keyboard opens
+    setTimeout(() => {
+      inputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    }, 300)
+  }, [])
+
+  const handleSendMessage = async () => {
+    if (!input.trim() && !selectedImage) return
+
+    const userMessage = input.trim()
+    const imageToAnalyze = selectedImage
+    
+    // Create user message content - include image reference if present
+    const messageContent = userMessage || (imageToAnalyze ? "Please analyze this image" : "")
+    
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      type: "user",
+      content: messageContent,
+      timestamp: new Date(),
+      image: imageToAnalyze || undefined,
+    }
+
+    setMessages((prev) => [...prev, newMessage])
+    const currentInput = input
+    setInput("")
+    setSelectedImage(null)
+    setIsTyping(true)
+
+    try {
+      let diagnosticSummary: string | undefined = undefined
+
+      // If image is provided, analyze it first
+      if (imageToAnalyze) {
+        try {
+          console.log('Analyzing image...')
+          
+          // Convert base64 data URL to File for API
+          // Extract base64 data and mime type
+          const base64Data = imageToAnalyze.includes(',') 
+            ? imageToAnalyze.split(',')[1] 
+            : imageToAnalyze
+          const mimeMatch = imageToAnalyze.match(/data:([^;]+)/)
+          const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+          const extension = mimeType.includes('png') ? 'png' : 'jpg'
+          
+          // Convert base64 to binary
+          const byteCharacters = atob(base64Data)
+          const byteNumbers = new Array(byteCharacters.length)
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+          }
+          const byteArray = new Uint8Array(byteNumbers)
+          const blob = new Blob([byteArray], { type: mimeType })
+          const file = new File([blob], `image.${extension}`, { type: mimeType })
+
+          // Send to analyze-photo API
+          const analyzeFormData = new FormData()
+          analyzeFormData.append('image', file)
+          if (currentInput.trim()) {
+            analyzeFormData.append('description', currentInput)
+          }
+
+          console.log('Sending to analyze-photo API...')
+          const analyzeResponse = await fetch('/api/analyze-photo', {
+            method: 'POST',
+            body: analyzeFormData,
+          })
+
+          if (analyzeResponse.ok) {
+            const analyzeData = await analyzeResponse.json()
+            console.log('Analysis result:', analyzeData)
+            
+            // Create comprehensive summary from analysis
+            // Format it clearly for the LLM to understand
+            const causesText = Array.isArray(analyzeData.causes) && analyzeData.causes.length > 0
+              ? analyzeData.causes.join(', ')
+              : 'Unable to determine specific causes'
+            
+            const recommendationsText = Array.isArray(analyzeData.recommendations) && analyzeData.recommendations.length > 0
+              ? analyzeData.recommendations.join(', ')
+              : 'General diagnostic recommended'
+            
+            diagnosticSummary = `The user uploaded a photo that was analyzed by AI vision. Here are the analysis results:
+
+DIAGNOSIS: ${analyzeData.diagnosis || 'No specific diagnosis available'}
+SEVERITY LEVEL: ${analyzeData.severity || 'unknown'}
+POSSIBLE CAUSES: ${causesText}
+RECOMMENDATIONS: ${recommendationsText}
+DETAILED SUMMARY: ${analyzeData.summary || analyzeData.diagnosis || 'Image was analyzed but no specific issues were identified'}
+
+IMPORTANT: You can see and understand what's in the photo through this analysis. When the user asks about the image, dashboard, warning lights, or what you see, use this diagnostic information to provide accurate answers.`
+          } else {
+            const errorData = await analyzeResponse.json().catch(() => ({}))
+            console.error('Analysis API error:', errorData)
+          }
+        } catch (analyzeError) {
+          console.error('Photo analysis error:', analyzeError)
+          // Continue with chat even if analysis fails
+        }
+      }
+
+      // Prepare messages for API (convert to API format)
+      // Use current messages state + new message
+      const allMessages = [...messages, newMessage]
+      const apiMessages = allMessages
+        .filter((msg) => msg.content && msg.content.trim()) // Filter out empty messages
+        .map((msg) => ({
+          role: msg.type === "user" ? "user" : "assistant",
+          content: msg.content,
+        }))
+
+      // If we have image but no user message, add context about the image
+      if (imageToAnalyze && !currentInput.trim()) {
+        apiMessages[apiMessages.length - 1].content = "Please analyze the image I uploaded and tell me what you see, especially any warning lights or indicators on the dashboard."
+      }
+
+      console.log('Sending to chat API with diagnosticSummary:', diagnosticSummary ? 'Yes' : 'No')
+      
+      // Call chat API with diagnostic summary if available
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: apiMessages,
+          diagnosticSummary: diagnosticSummary,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to get response")
+      }
+
+      const data = await response.json()
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: data.reply || "I'm sorry, I couldn't process your request.",
+        timestamp: new Date(),
+      }
+
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (error) {
+      console.error("Chat error:", error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: error instanceof Error 
+          ? `Sorry, I encountered an error: ${error.message}` 
+          : "Sorry, I encountered an error. Please try again.",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsTyping(false)
+    }
+
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto"
+    }
+  }
+
+  const handleSuggestedQuestion = (question: string) => {
+    setInput(question)
+    setTimeout(() => {
+      inputRef.current?.focus()
+    }, 0)
+  }
+
+  const adjustTextareaHeight = () => {
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto"
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 100) + "px"
+    }
+  }
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      })
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop())
+        
+        // Create audio blob from recorded chunks
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        
+        // Show loading state
+        setInput((prev) => prev + " [Transcribing...]")
+        setIsTyping(true)
+
+        try {
+          // Send audio to transcription API
+          const formData = new FormData()
+          formData.append('audio', audioBlob, 'recording.webm')
+
+          const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || 'Transcription failed')
+          }
+
+          const data = await response.json()
+          const transcribedText = data.text || ''
+
+          // Replace "[Transcribing...]" with transcribed text
+          setInput((prev) => {
+            const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
+            return withoutPlaceholder + (transcribedText ? ` ${transcribedText}` : '')
+          })
+        } catch (error) {
+          console.error('Transcription error:', error)
+          // Replace with error message
+          setInput((prev) => {
+            const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
+            return withoutPlaceholder + ' [Voice transcription failed. Please type your message.]'
+          })
+        } finally {
+          setIsTyping(false)
+          // Clear audio chunks
+          audioChunksRef.current = []
+        }
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (error) {
+      console.error("Error accessing microphone:", error)
+      alert("Unable to access microphone. Please check your permissions.")
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const handleVoiceInput = () => {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }
+
+  const handlePhotoSelect = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+    event.target.value = ""
+  }
+
+  const removeSelectedImage = () => {
+    setSelectedImage(null)
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* Header - fixed height */}
+      <div className="flex items-center gap-4 px-4 py-3 border-b border-border bg-card shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 rounded-full hover:bg-muted"
+          onClick={() => onNavigate("results")}
+          aria-label="Go back to results"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-lg font-bold text-foreground">Chat with AI</h1>
+      </div>
+
+      {/* Messages Area - scrollable, takes remaining space */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+        {messages.map((message) => (
+          <div key={message.id} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`flex gap-2 max-w-[85%] ${message.type === "user" ? "flex-row-reverse" : ""}`}>
+              {message.type === "assistant" && (
+                <div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11z" />
+                  </svg>
+                </div>
+              )}
+              <div
+                className={`rounded-2xl px-3 py-2.5 ${
+                  message.type === "user"
+                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                    : "bg-muted text-foreground rounded-bl-sm"
+                }`}
+              >
+                {message.image && (
+                  <img
+                    src={message.image || "/placeholder.svg"}
+                    alt="Uploaded"
+                    className="max-w-full h-auto rounded-lg mb-2 max-h-40 object-cover"
+                  />
+                )}
+                <p className="text-sm leading-relaxed">{message.content}</p>
+                <p
+                  className={`text-[10px] mt-1.5 ${
+                    message.type === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
+                  }`}
+                >
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="flex gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11z" />
+                </svg>
+              </div>
+              <div className="rounded-2xl px-3 py-2.5 bg-muted rounded-bl-sm">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0s" }} />
+                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.15s" }} />
+                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.3s" }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Suggested questions - fixed height */}
+      {messages.length < 5 && (
+        <div className="px-4 py-3 border-t border-border bg-muted/30 shrink-0">
+          <p className="text-[10px] font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+            Suggested questions
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {suggestedQuestions.map((question, index) => (
+              <button
+                key={index}
+                onClick={() => handleSuggestedQuestion(question)}
+                className="px-3 py-1.5 text-xs whitespace-nowrap rounded-full bg-card text-foreground hover:bg-primary hover:text-primary-foreground transition-all flex-shrink-0 border border-border font-medium"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Selected image preview */}
+      {selectedImage && (
+        <div className="px-4 py-2 border-t border-border bg-card shrink-0">
+          <div className="relative inline-block">
+            <img
+              src={selectedImage || "/placeholder.svg"}
+              alt="Selected"
+              className="h-16 w-16 object-cover rounded-lg border border-border"
+            />
+            <button
+              onClick={removeSelectedImage}
+              className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+              aria-label="Remove image"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Input bar - fixed at bottom, always visible */}
+      <div
+        className="border-t border-border bg-card px-4 py-3 shrink-0"
+        style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
+      >
+        <div className="flex gap-2 items-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 flex-shrink-0 rounded-full hover:bg-muted"
+            onClick={handlePhotoSelect}
+            aria-label="Upload photo"
+          >
+            <Camera className="h-5 w-5 text-muted-foreground" />
+          </Button>
+
+          <div className="flex-1 relative">
+            <textarea
+              ref={inputRef}
+              value={input}
+              data-gramm="false"
+              data-gramm_editor="false"
+              data-enable-grammarly="false"
+              onChange={(e) => {
+                setInput(e.target.value)
+                adjustTextareaHeight()
+              }}
+              onFocus={handleInputFocus}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSendMessage()
+                }
+              }}
+              placeholder="Describe the issue..."
+              className="w-full resize-none rounded-2xl border border-border bg-muted text-foreground px-4 py-2.5 pr-12 text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+              rows={1}
+              style={{ maxHeight: "100px" }}
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={!input.trim() && !selectedImage}
+              size="icon"
+              className="absolute right-1.5 bottom-1.5 h-7 w-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              aria-label="Send message"
+            >
+              <Send className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-10 w-10 flex-shrink-0 rounded-full transition-all ${
+              isRecording
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 animate-pulse"
+                : "hover:bg-muted"
+            }`}
+            onClick={handleVoiceInput}
+            aria-label={isRecording ? "Stop recording" : "Voice input"}
+          >
+            {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

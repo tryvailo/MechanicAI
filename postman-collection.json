@@ -1,0 +1,213 @@
+{
+  "info": {
+    "name": "Car Diagnostics API",
+    "description": "Collection for testing car diagnostics API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Analyze Photo",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "src": [],
+              "description": "JPEG or PNG image, max 5MB"
+            },
+            {
+              "key": "description",
+              "type": "text",
+              "value": "Engine making strange noise",
+              "description": "Optional text description"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/analyze-photo",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analyze-photo"]
+        },
+        "description": "Analyze a car diagnostic photo and return diagnosis, severity, causes, and recommendations."
+      },
+      "response": []
+    },
+    {
+      "name": "Transcribe Audio",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "audio",
+              "type": "file",
+              "src": [],
+              "description": "WebM, MP3, or WAV audio file, max 20MB"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/transcribe",
+          "host": ["{{base_url}}"],
+          "path": ["api", "transcribe"]
+        },
+        "description": "Transcribe audio to text using OpenAI Whisper API."
+      },
+      "response": []
+    },
+    {
+      "name": "Chat - Simple",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is wrong with my car engine?\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        },
+        "description": "Simple chat request without diagnostic context."
+      },
+      "response": []
+    },
+    {
+      "name": "Chat - With Diagnostic Summary",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How do I fix the fuel system issue?\"\n    }\n  ],\n  \"diagnosticSummary\": \"Engine trouble detected. Possible fuel system issue with severity: high\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        },
+        "description": "Chat request with previous diagnostic analysis context."
+      },
+      "response": []
+    },
+    {
+      "name": "Chat - With Conversation History",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"My car won't start\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"I can help you diagnose the issue. Can you tell me more about what happens when you try to start the car?\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"It makes a clicking sound\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        },
+        "description": "Chat request with conversation history."
+      },
+      "response": []
+    },
+    {
+      "name": "Chat - Streaming",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Explain how to check fuel pressure\"\n    }\n  ],\n  \"stream\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        },
+        "description": "Chat request with streaming enabled (Server-Sent Events)."
+      },
+      "response": []
+    },
+    {
+      "name": "Chat - Error Case (Missing Messages)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        },
+        "description": "Error case: missing required messages array. Should return 400."
+      },
+      "response": []
+    }
+  ]
+}
+
