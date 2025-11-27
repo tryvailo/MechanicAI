@@ -52,7 +52,6 @@ export default function ResultsPage() {
   // Force PlacesScreen to remount every time Places tab becomes active
   useEffect(() => {
     if (currentPage === "places") {
-      console.log('Places tab activated - forcing remount');
       setPlacesKey((prev) => prev + 1)
     }
   }, [currentPage])

@@ -49,12 +49,6 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
 
   // Reset and reload data when component mounts (when Places tab is opened)
   useEffect(() => {
-    console.log('PlacesScreen mounted/remounted - resetting state and reloading data', {
-      timestamp: new Date().toISOString(),
-      currentRadius: radiusKm,
-      currentFilter: filter,
-    });
-    
     // Reset to default values
     setRadiusKm(5);
     setFilter({
@@ -69,11 +63,6 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
     setParkings([]);
     
     // Data will be reloaded by the useEffect that watches isLocationGranted
-    
-    // Cleanup function to log unmount
-    return () => {
-      console.log('PlacesScreen unmounting');
-    };
   }, []); // Empty deps - only run on mount
 
   const isLocationGranted = permission === 'granted' && userLocation !== null;
