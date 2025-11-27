@@ -400,11 +400,20 @@ export function NearbyPlacesMap({
 
   // Callback ref to ensure we capture the element
   const setMapContainerRef = useCallback((node: HTMLDivElement | null) => {
-    mapContainerRef.current = node;
-    mapRef.current = node;
-    // Try to initialize map if all conditions are met
-    if (node && mapsLoaded && !googleMapRef.current && window.google?.maps?.Map) {
-      setTimeout(() => initializeMap(node), 100);
+    if (node) {
+      mapContainerRef.current = node;
+      mapRef.current = node;
+      // Try to initialize map if all conditions are met
+      if (mapsLoaded && !googleMapRef.current && window.google?.maps?.Map) {
+        console.log('Initializing map from callback ref');
+        setTimeout(() => initializeMap(node), 100);
+      }
+    } else {
+      // Node is being unmounted - don't clear refs if map is still valid
+      if (!googleMapRef.current) {
+        mapContainerRef.current = null;
+        mapRef.current = null;
+      }
     }
   }, [mapsLoaded, initializeMap]);
 
@@ -787,20 +796,71 @@ export function NearbyPlacesMap({
   // Clear route when a new place is selected (but keep it if route is active)
   // Route will be cleared when user clicks on a different place
 
-  // Show loading state
-  if (isLoading) {
-    return <MapSkeleton />;
-  }
-
-  // Show error state
+  // Show error state (but keep map container)
   if (error || mapsError) {
-    return <ErrorDisplay message={error || mapsError || 'Unknown error'} />;
+    return (
+      <div className="flex h-full w-full flex-col">
+        <div
+          ref={setMapContainerRef}
+          className="w-full rounded-lg border bg-gray-100 dark:bg-gray-800"
+          style={{ 
+            height: '300px', 
+            minHeight: '300px',
+            width: '100%',
+            position: 'relative'
+          }}
+        >
+          <ErrorDisplay message={error || mapsError || 'Unknown error'} />
+        </div>
+        <div className="mt-3 flex-1 sm:mt-4">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'car_repair' | 'parking')}>
+            <TabsList className="w-full">
+              <TabsTrigger value="car_repair" className="flex-1 gap-1.5 text-xs sm:gap-2 sm:text-sm">
+                <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Car </span>Repair
+              </TabsTrigger>
+              <TabsTrigger value="parking" className="flex-1 gap-1.5 text-xs sm:gap-2 sm:text-sm">
+                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Parking
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+    );
   }
 
-  // Show API key missing error
+  // Show API key missing error (but keep map container)
   if (!apiKey) {
     return (
-      <ErrorDisplay message="Google Maps API key не настроен. Добавьте NEXT_PUBLIC_GOOGLE_MAPS_API_KEY в .env.local" />
+      <div className="flex h-full w-full flex-col">
+        <div
+          ref={setMapContainerRef}
+          className="w-full rounded-lg border bg-gray-100 dark:bg-gray-800"
+          style={{ 
+            height: '300px', 
+            minHeight: '300px',
+            width: '100%',
+            position: 'relative'
+          }}
+        >
+          <ErrorDisplay message="Google Maps API key не настроен. Добавьте NEXT_PUBLIC_GOOGLE_MAPS_API_KEY в .env.local" />
+        </div>
+        <div className="mt-3 flex-1 sm:mt-4">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'car_repair' | 'parking')}>
+            <TabsList className="w-full">
+              <TabsTrigger value="car_repair" className="flex-1 gap-1.5 text-xs sm:gap-2 sm:text-sm">
+                <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Car </span>Repair
+              </TabsTrigger>
+              <TabsTrigger value="parking" className="flex-1 gap-1.5 text-xs sm:gap-2 sm:text-sm">
+                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Parking
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
     );
   }
 
@@ -824,6 +884,15 @@ export function NearbyPlacesMap({
               {mapsError && (
                 <div className="text-destructive text-xs">{mapsError}</div>
               )}
+            </div>
+          </div>
+        )}
+        {/* Loading overlay - show when data is loading but map is already rendered */}
+        {isLoading && mapsLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm text-muted-foreground text-sm z-20 rounded-lg">
+            <div className="text-center bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg">
+              <div className="mb-2 animate-spin h-6 w-6 border-2 border-[#21808D] border-t-transparent rounded-full mx-auto"></div>
+              <div>Updating places...</div>
             </div>
           </div>
         )}
