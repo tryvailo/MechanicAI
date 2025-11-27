@@ -62,18 +62,29 @@ function useGoogleMapsScript(apiKey: string, mapId?: string) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let isMounted = true;
+    let timeoutIds: NodeJS.Timeout[] = [];
+
+    // Helper to safely set state
+    const safeSetState = (setter: () => void) => {
+      if (isMounted) {
+        setter();
+      }
+    };
+
     // Already loaded
     if (window.google?.maps?.Map) {
       googleMapsScriptLoaded = true;
-      setIsLoaded(true);
+      safeSetState(() => setIsLoaded(true));
       return;
     }
 
     // Already loading - register callback
     if (googleMapsScriptLoading) {
-      const callback = () => setIsLoaded(true);
+      const callback = () => safeSetState(() => setIsLoaded(true));
       googleMapsLoadCallbacks.push(callback);
       return () => {
+        isMounted = false;
         const index = googleMapsLoadCallbacks.indexOf(callback);
         if (index > -1) googleMapsLoadCallbacks.splice(index, 1);
       };
@@ -87,23 +98,32 @@ function useGoogleMapsScript(apiKey: string, mapId?: string) {
     if (existingScript) {
       if (window.google?.maps?.Map) {
         googleMapsScriptLoaded = true;
-        setIsLoaded(true);
+        safeSetState(() => setIsLoaded(true));
       } else {
         const onLoad = () => {
           googleMapsScriptLoaded = true;
-          setIsLoaded(true);
+          safeSetState(() => setIsLoaded(true));
         };
         existingScript.addEventListener('load', onLoad);
-        return () => existingScript.removeEventListener('load', onLoad);
+        return () => {
+          isMounted = false;
+          // Safely remove event listener - check if element still exists and is in DOM
+          try {
+            if (existingScript && existingScript.parentNode && typeof existingScript.removeEventListener === 'function') {
+              existingScript.removeEventListener('load', onLoad);
+            }
+          } catch (error) {
+            // Ignore errors if element was already removed
+          }
+        };
       }
       return;
     }
 
     // Don't load if API key is missing
     if (!apiKey || apiKey.trim() === '') {
-      console.error('Google Maps API key is missing');
       googleMapsScriptLoading = false;
-      setLoadError('Google Maps API key is not configured. Please add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your environment variables.');
+      safeSetState(() => setLoadError('Google Maps API key is not configured. Please add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your environment variables.'));
       return;
     }
 
@@ -114,48 +134,91 @@ function useGoogleMapsScript(apiKey: string, mapId?: string) {
     // Load marker library if mapId is configured (for AdvancedMarkerElement)
     // DirectionsService and DirectionsRenderer are available in the main API, no separate library needed
     const libraries = mapId ? 'marker' : '';
+    // Use loading=async for best practice (recommended by Google)
     const url = libraries
       ? `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=${libraries}&loading=async`
       : `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
     script.src = url;
     script.async = true;
 
+    let checkApiReadyTimeoutId: NodeJS.Timeout | null = null;
+    
     script.onload = () => {
-      console.log('Google Maps script loaded successfully');
-      
-      // Wait for Google Maps API to be fully initialized
-      // With loading=async, the API might not be ready immediately
+      console.log('[Google Maps] Script loaded, waiting for API initialization...');
+      // With loading=async, the API is not ready immediately after onload
+      // We need to wait for the API to be fully initialized
       const checkApiReady = (attempts = 0) => {
-        if (typeof window !== 'undefined' && window.google?.maps?.Map) {
-          console.log('Google Maps API is ready:', {
-            hasMap: !!window.google.maps.Map,
-            hasMarker: !!window.google.maps.marker,
-          });
+        if (!isMounted) {
+          if (checkApiReadyTimeoutId) {
+            clearTimeout(checkApiReadyTimeoutId);
+            checkApiReadyTimeoutId = null;
+          }
+          return;
+        }
+        
+        // Check if Google Maps API is available
+        const hasGoogleMaps = typeof window !== 'undefined' && window.google?.maps?.Map;
+        
+        if (hasGoogleMaps) {
+          console.log('[Google Maps] API is ready!');
           googleMapsScriptLoaded = true;
           googleMapsScriptLoading = false;
-          setIsLoaded(true);
-          googleMapsLoadCallbacks.forEach((cb) => cb());
-          googleMapsLoadCallbacks.length = 0;
-        } else if (attempts < 20) {
-          // Retry up to 20 times (2 seconds total)
-          setTimeout(() => checkApiReady(attempts + 1), 100);
+          if (isMounted) {
+            setIsLoaded(true);
+            googleMapsLoadCallbacks.forEach((cb) => cb());
+            googleMapsLoadCallbacks.length = 0;
+          }
+          if (checkApiReadyTimeoutId) {
+            clearTimeout(checkApiReadyTimeoutId);
+            checkApiReadyTimeoutId = null;
+          }
+        } else if (attempts < 50) {
+          // Retry up to 50 times (5 seconds total) - with loading=async, API may take longer
+          if (attempts % 10 === 0) {
+            console.log(`[Google Maps] Waiting for API... (attempt ${attempts}/50)`);
+          }
+          checkApiReadyTimeoutId = setTimeout(() => checkApiReady(attempts + 1), 100);
+          timeoutIds.push(checkApiReadyTimeoutId);
         } else {
-          console.error('Google Maps API failed to initialize after script load');
+          console.error('[Google Maps] API failed to initialize after 50 attempts');
           googleMapsScriptLoading = false;
-          setLoadError('Google Maps API failed to initialize. Please check your API key and network connection.');
+          if (isMounted) {
+            setLoadError('Google Maps API failed to initialize. Please check your API key and network connection.');
+          }
+          if (checkApiReadyTimeoutId) {
+            clearTimeout(checkApiReadyTimeoutId);
+            checkApiReadyTimeoutId = null;
+          }
         }
       };
       
+      // Start checking after a small delay to allow async loading to begin
       checkApiReady();
     };
 
     script.onerror = (error) => {
-      console.error('Failed to load Google Maps script:', error);
+      console.error('[Google Maps] Script failed to load:', error);
       googleMapsScriptLoading = false;
-      setLoadError('Failed to load Google Maps. Check your API key and network connection.');
+      safeSetState(() => setLoadError('Failed to load Google Maps. Check your API key and network connection.'));
     };
 
-    document.head.appendChild(script);
+    try {
+      if (document.head) {
+        document.head.appendChild(script);
+      }
+    } catch (error) {
+      googleMapsScriptLoading = false;
+      safeSetState(() => setLoadError('Failed to load Google Maps script. Please check your browser console.'));
+    }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      // Clear all timeouts
+      timeoutIds.forEach(id => clearTimeout(id));
+      timeoutIds = [];
+      // Don't remove script from DOM as it may be used by other components
+    };
   }, [apiKey, mapId]);
 
   return { isLoaded, loadError };
@@ -296,19 +359,37 @@ export function NearbyPlacesMap({
     : (process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || '');
   const { isLoaded: mapsLoaded, loadError: mapsError } = useGoogleMapsScript(apiKey, mapId);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[Google Maps] Status:', {
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey.length,
+      hasMapId: !!mapId,
+      mapsLoaded,
+      mapsError,
+      hasMapContainer: !!mapContainerRef.current,
+      hasGoogleMap: !!googleMapRef.current,
+    });
+  }, [apiKey, mapId, mapsLoaded, mapsError]);
+
   // Initialize map function
   const initializeMap = useCallback((container: HTMLDivElement) => {
     if (typeof window === 'undefined') return;
-    if (googleMapRef.current) return;
+    if (googleMapRef.current) {
+      console.log('[Google Map] Already initialized');
+      return;
+    }
     if (!window.google?.maps?.Map) {
-      console.warn('Google Maps API not available yet');
+      console.warn('[Google Map] API not available yet');
       return;
     }
 
     if (!container) {
-      console.error('Map container element is missing');
+      console.error('[Google Map] Container element is missing');
       return;
     }
+
+    console.log('[Google Map] Initializing map...');
     
     const mapOptions: google.maps.MapOptions = {
       center: userLocation,
@@ -410,21 +491,39 @@ export function NearbyPlacesMap({
 
     // Trigger resize to ensure map renders correctly
     setTimeout(() => {
-      if (googleMapRef.current && window.google?.maps?.event) {
-        window.google.maps.event.trigger(googleMapRef.current, 'resize');
+      if (googleMapRef.current && typeof window !== 'undefined' && window.google?.maps?.event) {
+        try {
+          window.google.maps.event.trigger(googleMapRef.current, 'resize');
+        } catch (error) {
+          // Ignore errors if map is being unmounted
+        }
       }
     }, 100);
   }, [userLocation]);
 
+  // Store timeout ID for callback ref cleanup
+  const mapInitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Callback ref to ensure we capture the element
   const setMapContainerRef = useCallback((node: HTMLDivElement | null) => {
+    // Clear any pending timeout when ref changes
+    if (mapInitTimeoutRef.current) {
+      clearTimeout(mapInitTimeoutRef.current);
+      mapInitTimeoutRef.current = null;
+    }
+
     if (node) {
       mapContainerRef.current = node;
       mapRef.current = node;
       // Try to initialize map if all conditions are met
-      if (mapsLoaded && !googleMapRef.current && window.google?.maps?.Map) {
-        console.log('Initializing map from callback ref');
-        setTimeout(() => initializeMap(node), 100);
+      if (mapsLoaded && !googleMapRef.current && typeof window !== 'undefined' && window.google?.maps?.Map) {
+        mapInitTimeoutRef.current = setTimeout(() => {
+          // Check if node is still mounted before initializing
+          if (mapContainerRef.current === node && !googleMapRef.current && node.parentNode) {
+            initializeMap(node);
+          }
+          mapInitTimeoutRef.current = null;
+        }, 100);
       }
     } else {
       // Node is being unmounted - don't clear refs if map is still valid
@@ -435,32 +534,39 @@ export function NearbyPlacesMap({
     }
   }, [mapsLoaded, initializeMap]);
 
-  // Debug logging
+  // Cleanup timeout on unmount
   useEffect(() => {
-    console.log('Map Debug:', {
-      apiKey: apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING',
-      mapsLoaded,
-      mapsError,
-      hasMapRef: !!mapContainerRef.current,
-      hasGoogleMap: !!googleMapRef.current,
-      userLocation,
-    });
-  }, [apiKey, mapsLoaded, mapsError, userLocation]);
+    return () => {
+      if (mapInitTimeoutRef.current) {
+        clearTimeout(mapInitTimeoutRef.current);
+        mapInitTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
 
   // Initialize map when conditions are met
   useEffect(() => {
+    console.log('[Google Map] Init effect:', {
+      mapsLoaded,
+      hasContainer: !!mapContainerRef.current,
+      hasMap: !!googleMapRef.current,
+      hasGoogleApi: typeof window !== 'undefined' && !!window.google?.maps?.Map,
+    });
+
     if (!mapsLoaded || !mapContainerRef.current || googleMapRef.current) {
       return;
     }
 
     if (!window.google?.maps?.Map) {
-      console.warn('Google Maps API not available, waiting...');
+      console.warn('[Google Map] API not available, waiting...');
       return;
     }
 
     // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
       if (mapContainerRef.current && !googleMapRef.current) {
+        console.log('[Google Map] Calling initializeMap...');
         initializeMap(mapContainerRef.current);
       }
     }, 100);
@@ -505,7 +611,6 @@ export function NearbyPlacesMap({
   // Add markers for places
   useEffect(() => {
     if (!mapsLoaded || !googleMapRef.current) {
-      console.log('Markers not added:', { mapsLoaded, hasMap: !!googleMapRef.current });
       return;
     }
 

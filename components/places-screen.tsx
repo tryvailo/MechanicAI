@@ -124,12 +124,6 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
   // Auto-fetch when location is granted and dependencies change
   useEffect(() => {
     if (isLocationGranted && userLocation) {
-      console.log('Auto-fetching places due to dependency change:', { 
-        radiusKm, 
-        filter, 
-        userLocation: { lat: userLocation.lat, lng: userLocation.lng } 
-      });
-      
       // Fetch places with current values
       const placeTypes: string[] = [];
       if (filter.carRepairs) placeTypes.push('car_repair');
@@ -162,11 +156,6 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
           return response.json();
         })
         .then((data) => {
-          console.log('Places fetched successfully:', {
-            carRepairs: data.carRepairs?.length || 0,
-            parkings: data.parkings?.length || 0,
-            radiusKm,
-          });
           setCarRepairs(data.carRepairs || []);
           setParkings(data.parkings || []);
         })
