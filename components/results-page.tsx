@@ -16,7 +16,6 @@ interface ScrollPosition {
 export default function ResultsPage() {
   const [currentPage, setCurrentPage] = useState<PageTab>("chat")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [placesKey, setPlacesKey] = useState(0) // Key to force PlacesScreen remount
   const [scrollPositions, setScrollPositions] = useState<ScrollPosition>({
     camera: 0,
     results: 0,
@@ -49,12 +48,6 @@ export default function ResultsPage() {
     [currentPage],
   )
 
-  // Force PlacesScreen to remount every time Places tab becomes active
-  useEffect(() => {
-    if (currentPage === "places") {
-      setPlacesKey((prev) => prev + 1)
-    }
-  }, [currentPage])
 
   const restoreScrollPosition = useCallback(
     (tab: PageTab) => {
@@ -79,23 +72,28 @@ export default function ResultsPage() {
         }}
         onLoad={() => restoreScrollPosition(currentPage)}
       >
-        {currentPage === "camera" && (
+        {/* Render all screens but hide inactive ones with CSS to prevent unmounting */}
+        <div style={{ display: currentPage === "camera" ? "block" : "none", height: "100%" }}>
           <CameraScanner 
             onNavigate={handleTabChange} 
             selectedImage={selectedImage}
             onImageClear={() => setSelectedImage(null)}
           />
-        )}
-        {currentPage === "results" && <AnalysisResults onNavigate={handleTabChange} />}
-        {currentPage === "chat" && (
+        </div>
+        <div style={{ display: currentPage === "results" ? "block" : "none", height: "100%" }}>
+          <AnalysisResults onNavigate={handleTabChange} />
+        </div>
+        <div style={{ display: currentPage === "chat" ? "block" : "none", height: "100%" }}>
           <ChatInterface 
             onNavigate={handleTabChange}
           />
-        )}
-        {currentPage === "history" && <HistoryScreen onNavigate={handleTabChange} />}
-        {currentPage === "places" ? (
-          <PlacesScreen key={placesKey} onNavigate={handleTabChange} />
-        ) : null}
+        </div>
+        <div style={{ display: currentPage === "history" ? "block" : "none", height: "100%" }}>
+          <HistoryScreen onNavigate={handleTabChange} />
+        </div>
+        <div style={{ display: currentPage === "places" ? "block" : "none", height: "100%" }}>
+          <PlacesScreen onNavigate={handleTabChange} />
+        </div>
       </div>
 
       {/* Tab navigation at bottom on mobile */}

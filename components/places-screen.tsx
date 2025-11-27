@@ -47,24 +47,6 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
 
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
 
-  // Reset and reload data when component mounts (when Places tab is opened)
-  useEffect(() => {
-    // Reset to default values
-    setRadiusKm(5);
-    setFilter({
-      carRepairs: true,
-      parkings: true,
-    });
-    setShowRadiusSlider(false);
-    setPlacesError(null);
-    
-    // Clear existing places data
-    setCarRepairs([]);
-    setParkings([]);
-    
-    // Data will be reloaded by the useEffect that watches isLocationGranted
-  }, []); // Empty deps - only run on mount
-
   const isLocationGranted = permission === 'granted' && userLocation !== null;
   const isLocationPending = geoLoading;
   const isLocationDenied = permission === 'denied' || permission === 'unavailable' || geoError !== null;
