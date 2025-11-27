@@ -55,7 +55,7 @@ export type UseGeolocationOptions = {
 const DEFAULT_OPTIONS: Required<UseGeolocationOptions> = {
   enableOnMount: true,
   cacheDuration: 5 * 60 * 1000, // 5 minutes
-  timeout: 15 * 1000, // 15 seconds (increased for better reliability)
+  timeout: 20 * 1000, // 20 seconds (increased for better reliability, especially on iOS)
   enableHighAccuracy: true,
   maximumAge: 60 * 1000, // 1 minute
 };
@@ -224,8 +224,11 @@ export function useGeolocation(
     setLoading(true);
     setError(null);
 
+    let retryCount = 0;
+    const maxRetries = 2; // Try up to 3 times total (initial + 2 retries)
+
     // First try with high accuracy
-    const tryGetLocation = (useHighAccuracy: boolean) => {
+    const tryGetLocation = (useHighAccuracy: boolean, attemptNumber: number = 0) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           if (!isMounted.current) return;
@@ -246,9 +249,27 @@ export function useGeolocation(
         (err) => {
           if (!isMounted.current) return;
 
-          // If high accuracy failed, try with low accuracy
-          if (useHighAccuracy && err.code === err.POSITION_UNAVAILABLE) {
-            tryGetLocation(false);
+          // If high accuracy failed with POSITION_UNAVAILABLE, try with low accuracy
+          if (useHighAccuracy && err.code === err.POSITION_UNAVAILABLE && attemptNumber === 0) {
+            console.log('High accuracy failed, trying low accuracy...');
+            tryGetLocation(false, 0);
+            return;
+          }
+
+          // Retry logic for POSITION_UNAVAILABLE and TIMEOUT errors
+          if (
+            retryCount < maxRetries &&
+            (err.code === err.POSITION_UNAVAILABLE || err.code === err.TIMEOUT)
+          ) {
+            retryCount++;
+            const delay = 1000 * retryCount; // Exponential backoff: 1s, 2s
+            console.log(`Location error (${err.code}), retrying in ${delay}ms (attempt ${retryCount}/${maxRetries})...`);
+            
+            setTimeout(() => {
+              if (isMounted.current) {
+                tryGetLocation(false, retryCount);
+              }
+            }, delay);
             return;
           }
 
@@ -260,10 +281,12 @@ export function useGeolocation(
               setPermission('denied');
               break;
             case err.POSITION_UNAVAILABLE:
-              errorMessage = ERROR_MESSAGES.POSITION_UNAVAILABLE;
+              errorMessage = ERROR_MESSAGES.POSITION_UNAVAILABLE + 
+                ' Make sure you are in an area with GPS signal or have internet connection for network-based location.';
               break;
             case err.TIMEOUT:
-              errorMessage = ERROR_MESSAGES.TIMEOUT;
+              errorMessage = ERROR_MESSAGES.TIMEOUT + 
+                ' Try moving to an area with better GPS signal or check your internet connection.';
               break;
             default:
               errorMessage = ERROR_MESSAGES.UNKNOWN;
@@ -280,7 +303,8 @@ export function useGeolocation(
       );
     };
 
-    tryGetLocation(opts.enableHighAccuracy);
+    retryCount = 0; // Reset retry counter
+    tryGetLocation(opts.enableHighAccuracy, 0);
   }, [opts.cacheDuration, opts.enableHighAccuracy, opts.timeout, opts.maximumAge]);
 
   // Request location on mount if enabled

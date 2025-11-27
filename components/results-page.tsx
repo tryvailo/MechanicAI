@@ -16,6 +16,7 @@ interface ScrollPosition {
 export default function ResultsPage() {
   const [currentPage, setCurrentPage] = useState<PageTab>("chat")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [placesKey, setPlacesKey] = useState(0) // Key to force PlacesScreen remount
   const [scrollPositions, setScrollPositions] = useState<ScrollPosition>({
     camera: 0,
     results: 0,
@@ -47,6 +48,14 @@ export default function ResultsPage() {
     },
     [currentPage],
   )
+
+  // Force PlacesScreen to remount every time Places tab becomes active
+  useEffect(() => {
+    if (currentPage === "places") {
+      console.log('Places tab activated - forcing remount');
+      setPlacesKey((prev) => prev + 1)
+    }
+  }, [currentPage])
 
   const restoreScrollPosition = useCallback(
     (tab: PageTab) => {
@@ -85,7 +94,9 @@ export default function ResultsPage() {
           />
         )}
         {currentPage === "history" && <HistoryScreen onNavigate={handleTabChange} />}
-        {currentPage === "places" && <PlacesScreen onNavigate={handleTabChange} />}
+        {currentPage === "places" ? (
+          <PlacesScreen key={placesKey} onNavigate={handleTabChange} />
+        ) : null}
       </div>
 
       {/* Tab navigation at bottom on mobile */}
