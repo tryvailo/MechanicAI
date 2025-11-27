@@ -66,10 +66,10 @@ const CACHE_KEY = 'geolocation_cache';
 // Error messages
 const ERROR_MESSAGES: Record<string, string> = {
   PERMISSION_DENIED: 'Location access denied. Please enable location in browser settings.',
-  POSITION_UNAVAILABLE: 'Unable to determine location. Check GPS and internet connection.',
-  TIMEOUT: 'Location request timed out. Try again in a location with better GPS signal.',
+  POSITION_UNAVAILABLE: 'Unable to determine your location. This may happen if you are indoors or GPS signal is weak. Please try again or move to an area with better GPS signal or internet connection.',
+  TIMEOUT: 'Location request timed out. Please try again or move to an area with better GPS signal.',
   NOT_SUPPORTED: 'Geolocation is not supported by your browser.',
-  UNKNOWN: 'An unknown error occurred while determining location.',
+  UNKNOWN: 'Unable to determine your location. Please check your GPS settings and internet connection, then try again.',
 };
 
 type CachedLocation = {
@@ -251,7 +251,7 @@ export function useGeolocation(
 
           // If high accuracy failed with POSITION_UNAVAILABLE, try with low accuracy
           if (useHighAccuracy && err.code === err.POSITION_UNAVAILABLE && attemptNumber === 0) {
-            console.log('High accuracy failed, trying low accuracy...');
+            // Silently retry with low accuracy
             tryGetLocation(false, 0);
             return;
           }
@@ -263,7 +263,6 @@ export function useGeolocation(
           ) {
             retryCount++;
             const delay = 1000 * retryCount; // Exponential backoff: 1s, 2s
-            console.log(`Location error (${err.code}), retrying in ${delay}ms (attempt ${retryCount}/${maxRetries})...`);
             
             setTimeout(() => {
               if (isMounted.current) {

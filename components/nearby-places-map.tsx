@@ -99,9 +99,16 @@ function useGoogleMapsScript(apiKey: string, mapId?: string) {
       return;
     }
 
+    // Don't load if API key is missing
+    if (!apiKey || apiKey.trim() === '') {
+      console.error('Google Maps API key is missing');
+      googleMapsScriptLoading = false;
+      setLoadError('Google Maps API key is not configured. Please add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your environment variables.');
+      return;
+    }
+
     // Load script
     googleMapsScriptLoading = true;
-    console.log('Loading Google Maps script with API key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING');
 
     const script = document.createElement('script');
     // Load marker library if mapId is configured (for AdvancedMarkerElement)
@@ -280,17 +287,28 @@ export function NearbyPlacesMap({
   const [activeTab, setActiveTab] = useState<'car_repair' | 'parking'>('car_repair');
   const [isRouteActive, setIsRouteActive] = useState(false);
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || '';
+  // Safely get environment variables (works in both dev and production)
+  const apiKey = typeof window !== 'undefined' 
+    ? (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '')
+    : (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '');
+  const mapId = typeof window !== 'undefined'
+    ? (process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || '')
+    : (process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || '');
   const { isLoaded: mapsLoaded, loadError: mapsError } = useGoogleMapsScript(apiKey, mapId);
 
   // Initialize map function
   const initializeMap = useCallback((container: HTMLDivElement) => {
-    if (googleMapRef.current || !window.google?.maps?.Map) {
+    if (typeof window === 'undefined') return;
+    if (googleMapRef.current) return;
+    if (!window.google?.maps?.Map) {
+      console.warn('Google Maps API not available yet');
       return;
     }
 
-    console.log('Initializing Google Map...');
+    if (!container) {
+      console.error('Map container element is missing');
+      return;
+    }
     
     const mapOptions: google.maps.MapOptions = {
       center: userLocation,
@@ -831,7 +849,7 @@ export function NearbyPlacesMap({
   }
 
   // Show API key missing error (but keep map container)
-  if (!apiKey) {
+  if (!apiKey || apiKey.trim() === '') {
     return (
       <div className="flex h-full w-full flex-col">
         <div
@@ -844,7 +862,7 @@ export function NearbyPlacesMap({
             position: 'relative'
           }}
         >
-          <ErrorDisplay message="Google Maps API key не настроен. Добавьте NEXT_PUBLIC_GOOGLE_MAPS_API_KEY в .env.local" />
+          <ErrorDisplay message="Google Maps API key не настроен. Добавьте NEXT_PUBLIC_GOOGLE_MAPS_API_KEY в переменные окружения Vercel (для продакшена) или в .env.local (для разработки)" />
         </div>
         <div className="mt-3 flex-1 sm:mt-4">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'car_repair' | 'parking')}>
