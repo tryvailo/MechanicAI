@@ -477,7 +477,10 @@ export function NearbyPlacesMap({
 
   // Add markers for places
   useEffect(() => {
-    if (!mapsLoaded || !googleMapRef.current) return;
+    if (!mapsLoaded || !googleMapRef.current) {
+      console.log('Markers not added:', { mapsLoaded, hasMap: !!googleMapRef.current });
+      return;
+    }
 
     // Clear existing markers
     markersRef.current.forEach((marker) => {
@@ -497,8 +500,11 @@ export function NearbyPlacesMap({
       ...parkings.map((p) => ({ place: p, type: 'parking' as const })),
     ];
 
-    allPlaces.forEach(({ place, type }) => {
-      if (!googleMapRef.current) return;
+    allPlaces.forEach(({ place, type }, index) => {
+      if (!googleMapRef.current) {
+        console.warn('Cannot add marker: map not available');
+        return;
+      }
 
       const markerIcon = type === 'car_repair' ? MARKER_ICONS.carRepair : MARKER_ICONS.parking;
       let marker: google.maps.Marker | google.maps.marker.AdvancedMarkerElement;
@@ -511,6 +517,9 @@ export function NearbyPlacesMap({
           markerImg.style.width = '40px';
           markerImg.style.height = '48px';
           markerImg.style.cursor = 'pointer';
+          markerImg.onerror = () => {
+            console.error('Failed to load marker icon:', markerIcon);
+          };
 
           marker = new window.google.maps.marker.AdvancedMarkerElement({
             map: googleMapRef.current,
@@ -518,6 +527,8 @@ export function NearbyPlacesMap({
             content: markerImg,
             title: place.name,
           });
+          
+          console.log(`AdvancedMarkerElement created for ${type} #${index}:`, place.name);
         } catch (error) {
           console.warn('AdvancedMarkerElement failed, using standard Marker:', error);
           // Fallback to standard Marker
@@ -530,6 +541,7 @@ export function NearbyPlacesMap({
               scaledSize: new window.google.maps.Size(40, 48),
             },
           });
+          console.log(`Standard Marker created for ${type} #${index}:`, place.name);
         }
       } else {
         // Use standard Marker (works without mapId)
@@ -542,6 +554,7 @@ export function NearbyPlacesMap({
             scaledSize: new window.google.maps.Size(40, 48),
           },
         });
+        console.log(`Standard Marker created for ${type} #${index}:`, place.name);
       }
 
       // Add click listener (works for both types)
@@ -568,7 +581,98 @@ export function NearbyPlacesMap({
 
       markersRef.current.push(marker);
     });
-  }, [mapsLoaded, carRepairs, parkings, createInfoWindowContent]);
+
+    console.log('Markers updated:', {
+      carRepairsCount: carRepairs.length,
+      parkingsCount: parkings.length,
+      totalMarkers: markersRef.current.length,
+    });
+
+    // Update map bounds to show all markers
+    if (googleMapRef.current && allPlaces.length > 0) {
+      // Clear active route if exists (it can interfere with bounds update)
+      if (isRouteActive && directionsRendererRef.current) {
+        directionsRendererRef.current.setMap(null);
+        setIsRouteActive(false);
+      }
+
+      // Wait a bit for markers to be fully rendered
+      const updateBounds = () => {
+        if (!googleMapRef.current) return;
+
+        const bounds = new window.google.maps.LatLngBounds();
+        
+        // Add user location to bounds
+        bounds.extend(userLocation);
+        
+        // Add all places to bounds
+        allPlaces.forEach(({ place }) => {
+          bounds.extend({ lat: place.lat, lng: place.lng });
+        });
+
+        // Check if bounds are valid
+        if (!bounds.isEmpty()) {
+          const ne = bounds.getNorthEast();
+          const sw = bounds.getSouthWest();
+          const latDiff = Math.abs(ne.lat() - sw.lat());
+          const lngDiff = Math.abs(ne.lng() - sw.lng());
+          
+          console.log('Updating map bounds to show all markers', {
+            placesCount: allPlaces.length,
+            markersCount: markersRef.current.length,
+            bounds: { latDiff, lngDiff },
+          });
+          
+          try {
+            // First, trigger resize to ensure map container is properly sized
+            if (window.google?.maps?.event) {
+              window.google.maps.event.trigger(googleMapRef.current, 'resize');
+            }
+
+            // Fit map to show all markers with padding (50px on all sides)
+            googleMapRef.current.fitBounds(bounds, 50);
+
+            // Force another update after fitBounds
+            setTimeout(() => {
+              if (googleMapRef.current) {
+                // Re-trigger resize to ensure map updates
+                if (window.google?.maps?.event) {
+                  window.google.maps.event.trigger(googleMapRef.current, 'resize');
+                }
+                // Also ensure bounds are applied
+                const currentBounds = googleMapRef.current.getBounds();
+                if (currentBounds && !currentBounds.equals(bounds)) {
+                  console.log('Bounds mismatch, reapplying...');
+                  googleMapRef.current.fitBounds(bounds, 50);
+                }
+              }
+            }, 100);
+          } catch (error) {
+            console.error('Error updating map bounds:', error);
+            // Fallback: calculate center and zoom manually
+            const center = bounds.getCenter();
+            if (center) {
+              googleMapRef.current.setCenter(center);
+              // Calculate appropriate zoom based on bounds
+              const latDiff = Math.abs(ne.lat() - sw.lat());
+              const lngDiff = Math.abs(ne.lng() - sw.lng());
+              const maxDiff = Math.max(latDiff, lngDiff);
+              const zoom = maxDiff > 0.1 ? 11 : maxDiff > 0.05 ? 12 : maxDiff > 0.02 ? 13 : 14;
+              googleMapRef.current.setZoom(zoom);
+            }
+          }
+        }
+      };
+
+      // Update bounds after a short delay to ensure markers are rendered
+      setTimeout(updateBounds, 300);
+    } else if (googleMapRef.current && allPlaces.length === 0) {
+      // If no places, center on user location
+      console.log('No places found, centering on user location');
+      googleMapRef.current.setCenter(userLocation);
+      googleMapRef.current.setZoom(14);
+    }
+  }, [mapsLoaded, carRepairs, parkings, createInfoWindowContent, mapId, userLocation]);
 
   // Handle place selection from list
   const handlePlaceClick = useCallback(

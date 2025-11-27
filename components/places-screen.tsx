@@ -86,6 +86,11 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
       }
 
       const data = await response.json();
+      console.log('Places fetched successfully:', {
+        carRepairs: data.carRepairs?.length || 0,
+        parkings: data.parkings?.length || 0,
+        radiusKm,
+      });
       setCarRepairs(data.carRepairs || []);
       setParkings(data.parkings || []);
     } catch (error) {
@@ -98,18 +103,76 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
     }
   }, [userLocation, radiusKm, filter]);
 
+  // Auto-fetch when location is granted and dependencies change
   useEffect(() => {
-    if (isLocationGranted) {
-      fetchNearbyPlaces();
+    if (isLocationGranted && userLocation) {
+      console.log('Auto-fetching places due to dependency change:', { 
+        radiusKm, 
+        filter, 
+        userLocation: { lat: userLocation.lat, lng: userLocation.lng } 
+      });
+      
+      // Fetch places with current values
+      const placeTypes: string[] = [];
+      if (filter.carRepairs) placeTypes.push('car_repair');
+      if (filter.parkings) placeTypes.push('parking');
+
+      if (placeTypes.length === 0) {
+        setCarRepairs([]);
+        setParkings([]);
+        return;
+      }
+
+      setIsLoadingPlaces(true);
+      setPlacesError(null);
+
+      fetch('/api/nearby-places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          latitude: userLocation.lat,
+          longitude: userLocation.lng,
+          radiusMeters: radiusKm * 1000,
+          placeTypes,
+        }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log('Places fetched successfully:', {
+            carRepairs: data.carRepairs?.length || 0,
+            parkings: data.parkings?.length || 0,
+            radiusKm,
+          });
+          setCarRepairs(data.carRepairs || []);
+          setParkings(data.parkings || []);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch nearby places:', error);
+          setPlacesError(
+            error instanceof Error ? error.message : 'Failed to load places'
+          );
+        })
+        .finally(() => {
+          setIsLoadingPlaces(false);
+        });
     }
-  }, [isLocationGranted, userLocation, radiusKm, filter, fetchNearbyPlaces]);
+  }, [isLocationGranted, userLocation, radiusKm, filter]);
 
   const toggleFilter = (key: keyof PlacesFilter) => {
     setFilter((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleRadiusChange = (value: number[]) => {
-    setRadiusKm(value[0]);
+    const newRadius = value[0];
+    console.log('Slider value changed:', { old: radiusKm, new: newRadius, value });
+    setRadiusKm(newRadius);
+    // Fetch will be triggered by useEffect when radiusKm changes
   };
 
   const filteredCarRepairs = filter.carRepairs ? carRepairs : [];
@@ -195,7 +258,7 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
             >
               <span className="text-sm sm:text-base">🔧</span>
               <span className="hidden xs:inline">Car </span>Repair
-              {filter.carRepairs && carRepairs.length > 0 && (
+              {filter.carRepairs && (
                 <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px] sm:ml-1 sm:h-5 sm:px-1.5 sm:text-xs">
                   {carRepairs.length}
                 </Badge>
@@ -213,7 +276,7 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
             >
               <span className="text-sm sm:text-base">🅿️</span>
               Parking
-              {filter.parkings && parkings.length > 0 && (
+              {filter.parkings && (
                 <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px] sm:ml-1 sm:h-5 sm:px-1.5 sm:text-xs">
                   {parkings.length}
                 </Badge>
