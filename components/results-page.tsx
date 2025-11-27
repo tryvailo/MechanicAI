@@ -5,6 +5,7 @@ import AnalysisResults from "./analysis-results"
 import CameraScanner from "./camera-scanner"
 import ChatInterface from "./chat-interface"
 import HistoryScreen from "./history-screen"
+import PlacesScreen from "./places-screen"
 import TabNavigation from "./tab-navigation"
 import type { PageTab } from "./types"
 
@@ -20,6 +21,7 @@ export default function ResultsPage() {
     results: 0,
     chat: 0,
     history: 0,
+    places: 0,
   })
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function ResultsPage() {
           />
         )}
         {currentPage === "history" && <HistoryScreen onNavigate={handleTabChange} />}
+        {currentPage === "places" && <PlacesScreen onNavigate={handleTabChange} />}
       </div>
 
       {/* Tab navigation at bottom on mobile */}

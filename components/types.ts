@@ -1,1 +1,1 @@
-export type PageTab = "camera" | "results" | "chat" | "history"
+export type PageTab = "camera" | "results" | "chat" | "history" | "places"
