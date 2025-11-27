@@ -506,30 +506,67 @@ export function NearbyPlacesMap({
 
   // Callback ref to ensure we capture the element
   const setMapContainerRef = useCallback((node: HTMLDivElement | null) => {
-    // Clear any pending timeout when ref changes
+    // Prevent issues with rapid ref changes
     if (mapInitTimeoutRef.current) {
       clearTimeout(mapInitTimeoutRef.current);
       mapInitTimeoutRef.current = null;
     }
 
     if (node) {
-      mapContainerRef.current = node;
-      mapRef.current = node;
-      // Try to initialize map if all conditions are met
-      if (mapsLoaded && !googleMapRef.current && typeof window !== 'undefined' && window.google?.maps?.Map) {
-        mapInitTimeoutRef.current = setTimeout(() => {
-          // Check if node is still mounted before initializing
-          if (mapContainerRef.current === node && !googleMapRef.current && node.parentNode) {
-            initializeMap(node);
+      // Safely check if node is in DOM before working with it
+      try {
+        // Only update if this is actually a new node and it's in the DOM
+        if (mapContainerRef.current !== node && node.isConnected) {
+          mapContainerRef.current = node;
+          mapRef.current = node;
+          
+          // Try to initialize map if all conditions are met
+          if (mapsLoaded && !googleMapRef.current && typeof window !== 'undefined' && window.google?.maps?.Map) {
+            mapInitTimeoutRef.current = setTimeout(() => {
+              // Double-check everything before initializing
+              try {
+                if (
+                  mapContainerRef.current === node && 
+                  !googleMapRef.current && 
+                  node.isConnected &&
+                  node.parentNode
+                ) {
+                  initializeMap(node);
+                }
+              } catch (error) {
+                // Ignore errors if node was removed
+                console.warn('[Google Map] Error during initialization:', error);
+              }
+              mapInitTimeoutRef.current = null;
+            }, 100);
           }
-          mapInitTimeoutRef.current = null;
-        }, 100);
+        } else if (mapContainerRef.current !== node) {
+          // Node changed but old one might still be referenced
+          mapContainerRef.current = node;
+          mapRef.current = node;
+        }
+      } catch (error) {
+        // Ignore errors if node is not accessible
+        console.warn('[Google Map] Error setting ref:', error);
       }
     } else {
-      // Node is being unmounted - don't clear refs if map is still valid
-      if (!googleMapRef.current) {
-        mapContainerRef.current = null;
-        mapRef.current = null;
+      // Node is being unmounted - be very careful here
+      // Only clear if we're sure this is the node being unmounted
+      try {
+        const currentRef = mapContainerRef.current;
+        // Only clear if refs point to null or the node is definitely unmounted
+        if (!currentRef || currentRef === node || !currentRef.isConnected) {
+          if (!googleMapRef.current) {
+            mapContainerRef.current = null;
+            mapRef.current = null;
+          }
+        }
+      } catch (error) {
+        // If we can't safely check, just clear the refs
+        if (!googleMapRef.current) {
+          mapContainerRef.current = null;
+          mapRef.current = null;
+        }
       }
     }
   }, [mapsLoaded, initializeMap]);
