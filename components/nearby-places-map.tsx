@@ -3,22 +3,6 @@
 /// <reference types="google.maps" />
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-// Suppress removeChild errors for prototype - Google Maps API sometimes conflicts with React DOM
-if (typeof window !== 'undefined') {
-  const originalRemoveChild = Node.prototype.removeChild;
-  Node.prototype.removeChild = function<T extends Node>(child: T): T {
-    try {
-      return originalRemoveChild.call(this, child) as T;
-    } catch (error: any) {
-      // Ignore removeChild errors - common with Google Maps API
-      if (error?.name === 'NotFoundError' && error?.message?.includes('removeChild')) {
-        return child;
-      }
-      throw error;
-    }
-  };
-}
 import { MapPin, Navigation, Star, Wrench, Car } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -73,38 +57,48 @@ function useGoogleMapsScript(apiKey: string, mapId?: string) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let isMounted = true;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const cleanup = () => {
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+
     // Check if already loaded
     if (window.google?.maps?.Map) {
-      setIsLoaded(true);
-      return;
+      if (isMounted) setIsLoaded(true);
+      return cleanup;
     }
 
     // Check if script already exists
     const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
     if (existingScript) {
-      // Wait for it to load
-      const checkLoaded = setInterval(() => {
+      intervalId = setInterval(() => {
         if (window.google?.maps?.Map) {
-          setIsLoaded(true);
-          clearInterval(checkLoaded);
+          if (isMounted) setIsLoaded(true);
+          cleanup();
         }
       }, 100);
       
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        clearInterval(checkLoaded);
-        if (!window.google?.maps?.Map) {
+      timeoutId = setTimeout(() => {
+        cleanup();
+        if (!window.google?.maps?.Map && isMounted) {
           setLoadError('Google Maps API failed to load');
         }
       }, 5000);
       
-      return () => clearInterval(checkLoaded);
+      return () => {
+        isMounted = false;
+        cleanup();
+      };
     }
 
     // Don't load if API key is missing
     if (!apiKey || apiKey.trim() === '') {
-      setLoadError('Google Maps API key is not configured');
-      return;
+      if (isMounted) setLoadError('Google Maps API key is not configured');
+      return cleanup;
     }
 
     // Create and load script
@@ -117,31 +111,30 @@ function useGoogleMapsScript(apiKey: string, mapId?: string) {
     script.defer = true;
 
     script.onload = () => {
-      // Simple check - wait a bit for API to be ready
-      const checkReady = setInterval(() => {
+      intervalId = setInterval(() => {
         if (window.google?.maps?.Map) {
-          setIsLoaded(true);
-          clearInterval(checkReady);
+          if (isMounted) setIsLoaded(true);
+          cleanup();
         }
       }, 50);
       
-      // Timeout after 3 seconds
-      setTimeout(() => {
-        clearInterval(checkReady);
-        if (!window.google?.maps?.Map) {
+      timeoutId = setTimeout(() => {
+        cleanup();
+        if (!window.google?.maps?.Map && isMounted) {
           setLoadError('Google Maps API failed to initialize');
         }
       }, 3000);
     };
 
     script.onerror = () => {
-      setLoadError('Failed to load Google Maps script');
+      if (isMounted) setLoadError('Failed to load Google Maps script');
     };
 
     document.head.appendChild(script);
 
     return () => {
-      // Don't remove script - it may be used by other components
+      isMounted = false;
+      cleanup();
     };
   }, [apiKey, mapId]);
 
@@ -387,7 +380,7 @@ export function NearbyPlacesMap({
         }
       }
     }, 100);
-  }, [userLocation]);
+  }, [userLocation, mapId]);
 
   // Use a simple ref instead of callback ref to avoid removeChild issues
   // React will handle the ref assignment automatically
@@ -395,11 +388,30 @@ export function NearbyPlacesMap({
 
   // Initialize map when script is loaded and container is ready
   useEffect(() => {
-    if (!mapsLoaded || !mapContainerRef.current || googleMapRef.current) {
+    if (!mapsLoaded || !mapContainerRef.current) {
       return;
     }
 
     if (!window.google?.maps?.Map) {
+      return;
+    }
+
+    // If map already exists, just trigger resize (for when tab becomes visible again)
+    if (googleMapRef.current && mapContainerRef.current) {
+      // Check if container is visible
+      const isVisible = mapContainerRef.current.offsetParent !== null;
+      if (isVisible) {
+        // Trigger resize to ensure map renders correctly after being hidden
+        setTimeout(() => {
+          if (googleMapRef.current && window.google?.maps?.event) {
+            try {
+              window.google.maps.event.trigger(googleMapRef.current, 'resize');
+            } catch (error) {
+              // Ignore errors
+            }
+          }
+        }, 100);
+      }
       return;
     }
 
@@ -412,6 +424,110 @@ export function NearbyPlacesMap({
 
     return () => clearTimeout(timer);
   }, [mapsLoaded, initializeMap]);
+
+  // Handle visibility changes - redraw map when tab becomes visible
+  useEffect(() => {
+    if (!googleMapRef.current || !mapContainerRef.current) {
+      return;
+    }
+
+    // Use IntersectionObserver to detect when container becomes visible
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && googleMapRef.current && window.google?.maps?.event) {
+            // Container is visible, trigger resize
+            setTimeout(() => {
+              if (googleMapRef.current && window.google?.maps?.event) {
+                try {
+                  window.google.maps.event.trigger(googleMapRef.current, 'resize');
+                } catch (error) {
+                  // Ignore errors
+                }
+              }
+            }, 150);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(mapContainerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [mapsLoaded]);
+
+  // Cleanup function - properly dispose of Google Maps objects
+  const cleanupMap = useCallback(() => {
+    if (typeof window === 'undefined' || !window.google?.maps) {
+      return;
+    }
+
+    try {
+      // Clear markers
+      markersRef.current.forEach((marker) => {
+        try {
+          if (marker instanceof window.google.maps.Marker) {
+            window.google.maps.event.clearInstanceListeners(marker);
+            marker.setMap(null);
+          } else if ('map' in marker && marker.map) {
+            marker.map = null;
+          }
+        } catch (error) {
+          // Ignore individual marker errors
+        }
+      });
+      markersRef.current = [];
+
+      // Close and clear info window
+      if (infoWindowRef.current) {
+        try {
+          infoWindowRef.current.close();
+          window.google.maps.event.clearInstanceListeners(infoWindowRef.current);
+        } catch (error) {
+          // Ignore errors
+        }
+        infoWindowRef.current = null;
+      }
+
+      // Clear directions renderer
+      if (directionsRendererRef.current) {
+        try {
+          directionsRendererRef.current.setMap(null);
+          // Clear directions with empty routes array instead of null
+          directionsRendererRef.current.setDirections({ routes: [] });
+          window.google.maps.event.clearInstanceListeners(directionsRendererRef.current);
+        } catch (error) {
+          // Ignore errors
+        }
+        directionsRendererRef.current = null;
+      }
+
+      // Clear directions service
+      directionsServiceRef.current = null;
+
+      // Clear map (but don't destroy it - let React handle DOM)
+      if (googleMapRef.current) {
+        try {
+          window.google.maps.event.clearInstanceListeners(googleMapRef.current);
+        } catch (error) {
+          // Ignore errors
+        }
+        googleMapRef.current = null;
+      }
+    } catch (error) {
+      // Ignore cleanup errors - component is unmounting anyway
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupMap();
+    };
+  }, [cleanupMap]);
 
   // Create info window content
   const createInfoWindowContent = useCallback(
@@ -461,6 +577,7 @@ export function NearbyPlacesMap({
       markersRef.current.forEach((marker) => {
         try {
           if (marker instanceof window.google.maps.Marker) {
+            window.google.maps.event.clearInstanceListeners(marker);
             marker.setMap(null);
           } else if ('map' in marker) {
             marker.map = null;
@@ -536,7 +653,7 @@ export function NearbyPlacesMap({
 
       // Add click listener (works for both types)
       if (marker.addListener) {
-        marker.addListener('click', () => {
+        const listener = marker.addListener('click', () => {
           if (!isMounted || !googleMapRef.current) return;
           
           setSelectedPlaceId(place.id);
@@ -560,6 +677,9 @@ export function NearbyPlacesMap({
             }
           }
         });
+        
+        // Store listener for cleanup (if needed)
+        // Note: Google Maps automatically cleans up listeners when marker is removed
       }
 
       markersRef.current.push(marker);
@@ -626,6 +746,26 @@ export function NearbyPlacesMap({
     return () => {
       isMounted = false;
       timeoutIds.forEach(id => clearTimeout(id));
+      
+      // Clear markers on cleanup
+      try {
+        markersRef.current.forEach((marker) => {
+          try {
+            if (marker instanceof window.google.maps.Marker) {
+              window.google.maps.event.clearInstanceListeners(marker);
+              marker.setMap(null);
+            } else if ('map' in marker) {
+              marker.map = null;
+            }
+          } catch (error) {
+            // Ignore individual marker errors
+          }
+        });
+        markersRef.current = [];
+      } catch (error) {
+        // Ignore cleanup errors
+        markersRef.current = [];
+      }
     };
   }, [mapsLoaded, carRepairs, parkings, createInfoWindowContent, mapId, userLocation, isRouteActive]);
 
@@ -693,8 +833,12 @@ export function NearbyPlacesMap({
 
       // Clear previous route
       if (directionsRendererRef.current) {
-        directionsRendererRef.current.setMap(null);
-        directionsRendererRef.current.setMap(googleMapRef.current);
+        try {
+          directionsRendererRef.current.setMap(null);
+          directionsRendererRef.current.setMap(googleMapRef.current);
+        } catch (error) {
+          // Ignore errors, try to continue
+        }
       }
 
       // Build route from user location to selected place
@@ -749,7 +893,16 @@ export function NearbyPlacesMap({
   // Clear route function
   const clearRoute = useCallback(() => {
     if (directionsRendererRef.current) {
-      directionsRendererRef.current.setMap(null);
+      try {
+        directionsRendererRef.current.setMap(null);
+        // Clear directions with empty routes array
+        directionsRendererRef.current.setDirections({ routes: [] });
+        setIsRouteActive(false);
+      } catch (error) {
+        // Ignore errors
+        setIsRouteActive(false);
+      }
+    } else {
       setIsRouteActive(false);
     }
   }, []);

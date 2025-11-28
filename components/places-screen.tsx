@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, RefreshCw, Navigation, AlertCircle, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -51,107 +51,111 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
   const isLocationPending = geoLoading;
   const isLocationDenied = permission === 'denied' || permission === 'unavailable' || geoError !== null;
 
-  const fetchNearbyPlaces = useCallback(async () => {
-    if (!userLocation) return;
+  // Ref to track current fetch and allow cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
+  const isMountedRef = useRef(true);
 
-    setIsLoadingPlaces(true);
-    setPlacesError(null);
-
-    const placeTypes: string[] = [];
-    if (filter.carRepairs) placeTypes.push('car_repair');
-    if (filter.parkings) placeTypes.push('parking');
-
-    if (placeTypes.length === 0) {
-      setCarRepairs([]);
-      setParkings([]);
-      setIsLoadingPlaces(false);
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/nearby-places', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          latitude: userLocation.lat,
-          longitude: userLocation.lng,
-          radiusMeters: radiusKm * 1000,
-          placeTypes,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Error ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Places fetched successfully:', {
-        carRepairs: data.carRepairs?.length || 0,
-        parkings: data.parkings?.length || 0,
-        radiusKm,
-      });
-      setCarRepairs(data.carRepairs || []);
-      setParkings(data.parkings || []);
-    } catch (error) {
-      console.error('Failed to fetch nearby places:', error);
-      setPlacesError(
-        error instanceof Error ? error.message : 'Failed to load places'
-      );
-    } finally {
-      setIsLoadingPlaces(false);
-    }
-  }, [userLocation, radiusKm, filter]);
-
-  // Auto-fetch when location is granted and dependencies change
+  // Track component mount state
   useEffect(() => {
-    if (isLocationGranted && userLocation) {
-      // Fetch places with current values
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Cancel any pending requests on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Single fetch function used by both auto-fetch and manual refresh
+  useEffect(() => {
+    if (!isLocationGranted || !userLocation) return;
+    if (!isMountedRef.current) return;
+
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    let isMounted = true;
+
+    const fetchPlaces = async () => {
       const placeTypes: string[] = [];
       if (filter.carRepairs) placeTypes.push('car_repair');
       if (filter.parkings) placeTypes.push('parking');
 
       if (placeTypes.length === 0) {
-        setCarRepairs([]);
-        setParkings([]);
+        if (isMounted) {
+          setCarRepairs([]);
+          setParkings([]);
+        }
         return;
       }
 
-      setIsLoadingPlaces(true);
-      setPlacesError(null);
+      if (isMounted) {
+        setIsLoadingPlaces(true);
+        setPlacesError(null);
+      }
 
-      fetch('/api/nearby-places', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          latitude: userLocation.lat,
-          longitude: userLocation.lng,
-          radiusMeters: radiusKm * 1000,
-          placeTypes,
-        }),
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Error ${response.status}`);
-          }
-          return response.json();
-        })
-        .then((data) => {
+      try {
+        const response = await fetch('/api/nearby-places', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            latitude: userLocation.lat,
+            longitude: userLocation.lng,
+            radiusMeters: radiusKm * 1000,
+            placeTypes,
+          }),
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Error ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (isMounted) {
           setCarRepairs(data.carRepairs || []);
           setParkings(data.parkings || []);
-        })
-        .catch((error) => {
-          console.error('Failed to fetch nearby places:', error);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return; // Ignore abort errors
+        }
+        console.error('Failed to fetch nearby places:', error);
+        if (isMounted) {
           setPlacesError(
             error instanceof Error ? error.message : 'Failed to load places'
           );
-        })
-        .finally(() => {
+        }
+      } finally {
+        if (isMounted) {
           setIsLoadingPlaces(false);
-        });
-    }
-  }, [isLocationGranted, userLocation, radiusKm, filter]);
+        }
+      }
+    };
+
+    fetchPlaces();
+
+    return () => {
+      isMounted = false;
+      if (!abortController.signal.aborted) {
+        abortController.abort();
+      }
+    };
+  }, [isLocationGranted, userLocation, radiusKm, filter, fetchTrigger]);
+
+  // Manual refresh function - just triggers the effect
+  const fetchNearbyPlaces = useCallback(() => {
+    setFetchTrigger(prev => prev + 1);
+  }, []);
 
   const toggleFilter = (key: keyof PlacesFilter) => {
     setFilter((prev) => ({ ...prev, [key]: !prev[key] }));

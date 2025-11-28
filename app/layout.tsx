@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { RemoveChildFix } from "@/components/remove-child-fix"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -47,6 +48,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`font-sans antialiased`} suppressHydrationWarning>
+        <RemoveChildFix />
         {children}
         <Analytics />
       </body>

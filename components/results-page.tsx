@@ -23,6 +23,8 @@ export default function ResultsPage() {
     history: 0,
     places: 0,
   })
+  // Track if Places tab was ever visited (for lazy loading)
+  const [placesVisited, setPlacesVisited] = useState(false)
 
   useEffect(() => {
     const metaViewport = document.querySelector('meta[name="viewport"]')
@@ -43,9 +45,13 @@ export default function ResultsPage() {
           [currentPage]: contentArea.scrollTop,
         }))
       }
+      // Mark Places as visited for lazy loading
+      if (newTab === "places" && !placesVisited) {
+        setPlacesVisited(true)
+      }
       setCurrentPage(newTab)
     },
-    [currentPage],
+    [currentPage, placesVisited],
   )
 
 
@@ -91,9 +97,12 @@ export default function ResultsPage() {
         <div style={{ display: currentPage === "history" ? "block" : "none", height: "100%" }}>
           <HistoryScreen onNavigate={handleTabChange} />
         </div>
-        <div style={{ display: currentPage === "places" ? "block" : "none", height: "100%" }}>
-          <PlacesScreen onNavigate={handleTabChange} />
-        </div>
+        {/* Lazy load Places screen - only mount when first visited */}
+        {placesVisited && (
+          <div style={{ display: currentPage === "places" ? "block" : "none", height: "100%" }}>
+            <PlacesScreen onNavigate={handleTabChange} />
+          </div>
+        )}
       </div>
 
       {/* Tab navigation at bottom on mobile */}

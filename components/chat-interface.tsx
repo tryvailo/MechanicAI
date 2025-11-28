@@ -305,9 +305,14 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
         } catch (error) {
           console.error('Transcription error:', error)
           // Replace with error message
+          const errorMessage = error instanceof Error ? error.message : 'Transcription failed'
+          const userMessage = errorMessage.includes('API key not configured')
+            ? ' [Voice transcription is not configured. Please set OPENAI_API_KEY in environment variables.]'
+            : ' [Voice transcription failed. Please type your message.]'
+          
           setInput((prev) => {
             const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
-            return withoutPlaceholder + ' [Voice transcription failed. Please type your message.]'
+            return withoutPlaceholder + userMessage
           })
         } finally {
           setIsTyping(false)
