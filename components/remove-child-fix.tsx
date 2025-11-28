@@ -3,9 +3,9 @@
 import { useEffect } from 'react';
 
 /**
- * Global fix for removeChild errors from Google Maps API
+ * Global fix for removeChild errors from Google Maps API and React
  * This suppresses NotFoundError when React tries to remove DOM nodes
- * that Google Maps has already removed or moved.
+ * that have already been removed or moved.
  * Also handles Next.js chunk loading errors.
  */
 export function RemoveChildFix() {
@@ -14,11 +14,14 @@ export function RemoveChildFix() {
       return;
     }
 
-    // Fix removeChild errors (backup in case script in head didn't run)
-    // Check if already patched
-    if (!Node.prototype.removeChild.toString().includes('originalRemoveChild')) {
-      const originalRemoveChild = Node.prototype.removeChild;
-      
+    // Apply removeChild fix immediately
+    const originalRemoveChild = Node.prototype.removeChild;
+    
+    // Check if already patched by checking if it's the original
+    const isPatched = Node.prototype.removeChild !== originalRemoveChild || 
+                      Node.prototype.removeChild.toString().includes('originalRemoveChild');
+    
+    if (!isPatched) {
       Node.prototype.removeChild = function<T extends Node>(child: T): T {
         try {
           return originalRemoveChild.call(this, child) as T;
@@ -28,7 +31,10 @@ export function RemoveChildFix() {
             return child;
           }
           // Also suppress "The object can not be found here" errors
-          if (error?.message && error.message.includes('can not be found')) {
+          if (error?.message && (
+            error.message.includes('can not be found') ||
+            error.message.includes('not be found here')
+          )) {
             return child;
           }
           throw error;
