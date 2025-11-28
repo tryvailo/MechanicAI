@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { RemoveChildFix } from "@/components/remove-child-fix"
+import { ErrorDisplay } from "@/components/error-display"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -50,6 +51,7 @@ export default function RootLayout({
       <body className={`font-sans antialiased`} suppressHydrationWarning>
         <RemoveChildFix />
         {children}
+        <ErrorDisplay />
         <Analytics />
       </body>
     </html>
