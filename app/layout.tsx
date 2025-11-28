@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
+import Script from "next/script"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { RemoveChildFix } from "@/components/remove-child-fix"
@@ -49,6 +50,36 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`font-sans antialiased`} suppressHydrationWarning>
+        <Script
+          id="removechild-fix"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Apply removeChild fix IMMEDIATELY before React loads
+              (function() {
+                if (typeof Node === 'undefined') return;
+                
+                const originalRemoveChild = Node.prototype.removeChild;
+                Node.prototype.removeChild = function(child) {
+                  try {
+                    return originalRemoveChild.call(this, child);
+                  } catch (error) {
+                    // Suppress ALL NotFoundError for removeChild
+                    // This is safe because if the node doesn't exist, we can't remove it anyway
+                    if (error && error.name === 'NotFoundError') {
+                      return child;
+                    }
+                    // Also suppress "The object can not be found here" errors
+                    if (error && error.message && error.message.includes('can not be found')) {
+                      return child;
+                    }
+                    throw error;
+                  }
+                };
+              })();
+            `,
+          }}
+        />
         <RemoveChildFix />
         {children}
         <ErrorDisplay />

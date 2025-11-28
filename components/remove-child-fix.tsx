@@ -14,22 +14,27 @@ export function RemoveChildFix() {
       return;
     }
 
-    // Fix removeChild errors
-    const originalRemoveChild = Node.prototype.removeChild;
-    
-    Node.prototype.removeChild = function<T extends Node>(child: T): T {
-      try {
-        return originalRemoveChild.call(this, child) as T;
-      } catch (error: any) {
-        // Ignore NotFoundError for removeChild - common with Google Maps API
-        // This happens when React tries to remove nodes that Google Maps already removed
-        if (error?.name === 'NotFoundError' && 
-            error?.message?.includes('removeChild')) {
-          return child;
+    // Fix removeChild errors (backup in case script in head didn't run)
+    // Check if already patched
+    if (!Node.prototype.removeChild.toString().includes('originalRemoveChild')) {
+      const originalRemoveChild = Node.prototype.removeChild;
+      
+      Node.prototype.removeChild = function<T extends Node>(child: T): T {
+        try {
+          return originalRemoveChild.call(this, child) as T;
+        } catch (error: any) {
+          // Suppress ALL NotFoundError for removeChild
+          if (error?.name === 'NotFoundError') {
+            return child;
+          }
+          // Also suppress "The object can not be found here" errors
+          if (error?.message && error.message.includes('can not be found')) {
+            return child;
+          }
+          throw error;
         }
-        throw error;
-      }
-    };
+      };
+    }
 
     // Handle Next.js chunk loading errors and general NotFoundError
     const handleChunkError = (event: ErrorEvent) => {
