@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlertCircle, X, Copy, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -49,6 +50,7 @@ function saveErrorsToStorage(errors: ErrorInfo[]) {
 }
 
 export function ErrorDisplay() {
+  const router = useRouter();
   const [errors, setErrors] = useState<ErrorInfo[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -61,29 +63,42 @@ export function ErrorDisplay() {
   }, []);
 
   const copyError = (error: ErrorInfo) => {
-    const text = `Error: ${error.message}\n\nTime: ${error.timestamp.toISOString()}\nURL: ${error.url || window.location.href}\n\n${error.stack || ''}`;
-    navigator.clipboard.writeText(text).then(() => {
-      // Visual feedback could be added here
-    });
+    try {
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : 'N/A';
+      const text = `Error: ${error.message}\n\nTime: ${error.timestamp.toISOString()}\nURL: ${error.url || currentUrl}\n\n${error.stack || ''}`;
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => {
+          // Ignore clipboard errors
+        });
+      }
+    } catch {
+      // Ignore errors
+    }
   };
 
   const shareAllErrors = async () => {
-    const text = errors
-      .map((e, i) => `Error #${i + 1}:\n${e.message}\nTime: ${e.timestamp.toISOString()}\nURL: ${e.url || 'N/A'}\n${e.stack ? `Stack: ${e.stack}` : ''}\n\n`)
-      .join('---\n\n');
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'App Errors Log',
-          text: text,
-        });
-      } catch {
-        // Fallback to copy
-        navigator.clipboard.writeText(text);
+    try {
+      const text = errors
+        .map((e, i) => `Error #${i + 1}:\n${e.message}\nTime: ${e.timestamp.toISOString()}\nURL: ${e.url || 'N/A'}\n${e.stack ? `Stack: ${e.stack}` : ''}\n\n`)
+        .join('---\n\n');
+      
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({
+            title: 'App Errors Log',
+            text: text,
+          });
+        } catch {
+          // Fallback to copy
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).catch(() => {});
+          }
+        }
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => {});
       }
-    } else {
-      navigator.clipboard.writeText(text);
+    } catch {
+      // Ignore errors
     }
   };
 
@@ -91,66 +106,94 @@ export function ErrorDisplay() {
     // Capture console errors
     const originalError = console.error;
     console.error = (...args: any[]) => {
-      originalError.apply(console, args);
+      try {
+        originalError.apply(console, args);
+      } catch {
+        // Ignore errors in error handler
+      }
       
-      const errorMessage = args
-        .map(arg => {
-          if (arg instanceof Error) {
-            return `${arg.name}: ${arg.message}\n${arg.stack || ''}`;
-          }
-          return String(arg);
-        })
-        .join(' ');
+      try {
+        const errorMessage = args
+          .map(arg => {
+            if (arg instanceof Error) {
+              return `${arg.name}: ${arg.message}\n${arg.stack || ''}`;
+            }
+            return String(arg);
+          })
+          .join(' ');
 
-      const newError: ErrorInfo = {
-        message: errorMessage,
-        timestamp: new Date(),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-      };
-      
-      setErrors(prev => {
-        const updated = [newError, ...prev.slice(0, 49)]; // Keep last 50 errors
-        saveErrorsToStorage(updated);
-        return updated;
-      });
+        const newError: ErrorInfo = {
+          message: errorMessage,
+          timestamp: new Date(),
+          url: typeof window !== 'undefined' ? window.location.href : undefined,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        };
+        
+        setErrors(prev => {
+          const updated = [newError, ...prev.slice(0, 49)]; // Keep last 50 errors
+          try {
+            saveErrorsToStorage(updated);
+          } catch {
+            // Ignore storage errors
+          }
+          return updated;
+        });
+      } catch {
+        // Ignore errors in error handler to prevent infinite loops
+      }
     };
 
     // Capture unhandled errors
     const handleError = (event: ErrorEvent) => {
-      const newError: ErrorInfo = {
-        message: `${event.message}\n${event.filename}:${event.lineno}:${event.colno}`,
-        stack: event.error?.stack,
-        timestamp: new Date(),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-      };
-      
-      setErrors(prev => {
-        const updated = [newError, ...prev.slice(0, 49)];
-        saveErrorsToStorage(updated);
-        return updated;
-      });
+      try {
+        const newError: ErrorInfo = {
+          message: `${event.message}\n${event.filename}:${event.lineno}:${event.colno}`,
+          stack: event.error?.stack,
+          timestamp: new Date(),
+          url: typeof window !== 'undefined' ? window.location.href : undefined,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        };
+        
+        setErrors(prev => {
+          const updated = [newError, ...prev.slice(0, 49)];
+          try {
+            saveErrorsToStorage(updated);
+          } catch {
+            // Ignore storage errors
+          }
+          return updated;
+        });
+      } catch {
+        // Ignore errors in error handler
+      }
     };
 
     // Capture unhandled promise rejections
     const handleRejection = (event: PromiseRejectionEvent) => {
-      const message = event.reason instanceof Error 
-        ? `${event.reason.name}: ${event.reason.message}\n${event.reason.stack || ''}`
-        : String(event.reason);
-      
-      const newError: ErrorInfo = {
-        message,
-        timestamp: new Date(),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-      };
-      
-      setErrors(prev => {
-        const updated = [newError, ...prev.slice(0, 49)];
-        saveErrorsToStorage(updated);
-        return updated;
-      });
+      try {
+        const message = event.reason instanceof Error 
+          ? `${event.reason.name}: ${event.reason.message}\n${event.reason.stack || ''}`
+          : String(event.reason);
+        
+        const newError: ErrorInfo = {
+          message,
+          timestamp: new Date(),
+          url: typeof window !== 'undefined' ? window.location.href : undefined,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        };
+        
+        setErrors(prev => {
+          const updated = [newError, ...prev.slice(0, 49)];
+          try {
+            saveErrorsToStorage(updated);
+          } catch {
+            // Ignore storage errors
+          }
+          return updated;
+        });
+      } catch {
+        // Ignore errors in error handler
+      }
     };
 
     window.addEventListener('error', handleError);
@@ -216,7 +259,14 @@ export function ErrorDisplay() {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => window.location.href = '/debug'}
+                onClick={() => {
+                  try {
+                    router.push('/debug');
+                  } catch (error) {
+                    // Fallback to window.location if router fails
+                    window.location.href = '/debug';
+                  }
+                }}
               >
                 Открыть страницу отладки
               </Button>
