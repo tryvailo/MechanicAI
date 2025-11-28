@@ -1,24 +1,90 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, X, Copy } from 'lucide-react';
+import { AlertCircle, X, Copy, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ErrorInfo {
   message: string;
   stack?: string;
   timestamp: Date;
+  url?: string;
+  userAgent?: string;
+}
+
+const ERRORS_STORAGE_KEY = 'app_errors_log';
+const MAX_STORED_ERRORS = 50;
+
+// Load errors from localStorage
+function loadErrorsFromStorage(): ErrorInfo[] {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const stored = localStorage.getItem(ERRORS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Convert timestamp strings back to Date objects
+      return parsed.map((e: any) => ({
+        ...e,
+        timestamp: new Date(e.timestamp),
+      }));
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return [];
+}
+
+// Save errors to localStorage
+function saveErrorsToStorage(errors: ErrorInfo[]) {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    // Keep only last MAX_STORED_ERRORS errors
+    const toSave = errors.slice(0, MAX_STORED_ERRORS);
+    localStorage.setItem(ERRORS_STORAGE_KEY, JSON.stringify(toSave));
+  } catch {
+    // Ignore storage errors (quota exceeded, etc.)
+  }
 }
 
 export function ErrorDisplay() {
   const [errors, setErrors] = useState<ErrorInfo[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Load errors from storage on mount
+  useEffect(() => {
+    const storedErrors = loadErrorsFromStorage();
+    if (storedErrors.length > 0) {
+      setErrors(storedErrors);
+    }
+  }, []);
+
   const copyError = (error: ErrorInfo) => {
-    const text = `Error: ${error.message}\n\nTime: ${error.timestamp.toISOString()}\n\n${error.stack || ''}`;
+    const text = `Error: ${error.message}\n\nTime: ${error.timestamp.toISOString()}\nURL: ${error.url || window.location.href}\n\n${error.stack || ''}`;
     navigator.clipboard.writeText(text).then(() => {
       // Visual feedback could be added here
     });
+  };
+
+  const shareAllErrors = async () => {
+    const text = errors
+      .map((e, i) => `Error #${i + 1}:\n${e.message}\nTime: ${e.timestamp.toISOString()}\nURL: ${e.url || 'N/A'}\n${e.stack ? `Stack: ${e.stack}` : ''}\n\n`)
+      .join('---\n\n');
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'App Errors Log',
+          text: text,
+        });
+      } catch {
+        // Fallback to copy
+        navigator.clipboard.writeText(text);
+      }
+    } else {
+      navigator.clipboard.writeText(text);
+    }
   };
 
   useEffect(() => {
@@ -36,25 +102,35 @@ export function ErrorDisplay() {
         })
         .join(' ');
 
-      setErrors(prev => [
-        {
-          message: errorMessage,
-          timestamp: new Date(),
-        },
-        ...prev.slice(0, 9), // Keep last 10 errors
-      ]);
+      const newError: ErrorInfo = {
+        message: errorMessage,
+        timestamp: new Date(),
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+      };
+      
+      setErrors(prev => {
+        const updated = [newError, ...prev.slice(0, 49)]; // Keep last 50 errors
+        saveErrorsToStorage(updated);
+        return updated;
+      });
     };
 
     // Capture unhandled errors
     const handleError = (event: ErrorEvent) => {
-      setErrors(prev => [
-        {
-          message: `${event.message}\n${event.filename}:${event.lineno}:${event.colno}`,
-          stack: event.error?.stack,
-          timestamp: new Date(),
-        },
-        ...prev.slice(0, 9),
-      ]);
+      const newError: ErrorInfo = {
+        message: `${event.message}\n${event.filename}:${event.lineno}:${event.colno}`,
+        stack: event.error?.stack,
+        timestamp: new Date(),
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+      };
+      
+      setErrors(prev => {
+        const updated = [newError, ...prev.slice(0, 49)];
+        saveErrorsToStorage(updated);
+        return updated;
+      });
     };
 
     // Capture unhandled promise rejections
@@ -63,13 +139,18 @@ export function ErrorDisplay() {
         ? `${event.reason.name}: ${event.reason.message}\n${event.reason.stack || ''}`
         : String(event.reason);
       
-      setErrors(prev => [
-        {
-          message,
-          timestamp: new Date(),
-        },
-        ...prev.slice(0, 9),
-      ]);
+      const newError: ErrorInfo = {
+        message,
+        timestamp: new Date(),
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+      };
+      
+      setErrors(prev => {
+        const updated = [newError, ...prev.slice(0, 49)];
+        saveErrorsToStorage(updated);
+        return updated;
+      });
     };
 
     window.addEventListener('error', handleError);
@@ -109,7 +190,10 @@ export function ErrorDisplay() {
               variant="ghost"
               size="sm"
               className="h-6 px-2 text-destructive-foreground hover:bg-destructive/80"
-              onClick={() => setErrors([])}
+              onClick={() => {
+                setErrors([]);
+                localStorage.removeItem(ERRORS_STORAGE_KEY);
+              }}
             >
               <X className="h-3 w-3" />
             </Button>
@@ -118,6 +202,25 @@ export function ErrorDisplay() {
         
         {isExpanded && (
           <div className="max-h-96 overflow-y-auto p-3 space-y-3">
+            <div className="flex gap-2 mb-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7"
+                onClick={shareAllErrors}
+              >
+                <Share2 className="h-3 w-3 mr-1" />
+                Поделиться
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => window.location.href = '/debug'}
+              >
+                Открыть страницу отладки
+              </Button>
+            </div>
             {errors.map((error, index) => (
               <div
                 key={index}
