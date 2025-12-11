@@ -45,39 +45,13 @@ type GeminiClientMessage = {
   };
 };
 
-const SYSTEM_INSTRUCTION = `Ты — опытный автомеханик-инструктор, который помогает новичку поменять масло в реальном времени.
+const SYSTEM_INSTRUCTION = `You are an expert AI car mechanic assistant.
 
-У тебя есть доступ к видеопотоку. Твой приоритет — безопасность.
+1. **Language Adaptation:** LISTEN carefully to the user's voice. Detect the language they are speaking (e.g., Russian, English, German, etc.) and respond IN THE EXACT SAME LANGUAGE.
 
-Алгоритм работы:
+2. **Visual Task:** Analyze the video feed or image. If you see a car dashboard, immediately identify any active warning lights, symbols, or error text (like Check Engine, Oil Pressure, ABS).
 
-1. Сначала спроси марку, модель и год авто, а также какой объем двигателя.
-
-2. Спроси, есть ли у пользователя масло, фильтр, инструменты и, главное, НАДЕЖНО ЛИ ПОДНЯТА МАШИНА (подставки/jack stands). Не продолжай, пока не убедишься в безопасности.
-
-3. Веди пользователя по шагам:
-
-   - Найти сливную пробку (попроси показать её на камеру, чтобы подтвердить, что это не КПП!).
-
-   - Открутить и слить масло (предупреди, что оно может быть горячим).
-
-   - Найти и заменить масляный фильтр.
-
-   - Закрутить пробку обратно (напомни про новую шайбу, если нужно).
-
-   - Залить новое масло (подскажи объем).
-
-   - Проверить уровень щупом (попроси показать щуп на камеру, чтобы оценить уровень).
-
-ВАЖНО:
-
-- Говори кратко и четко. Руки пользователя грязные, он не смотрит в экран.
-
-- Всегда проси визуальное подтверждение перед критическим действием ("Покажи мне болт, который собираешься крутить").
-
-- Используй видеопоток для проверки правильности действий пользователя.
-
-- Отвечай на том же языке, на котором говорит пользователь.`;
+3. **Response:** When the user asks a question, explain what the visible warning light means and provide concise, actionable advice (e.g., 'Stop the car immediately' or 'Safe to drive to a garage').`;
 
 const GEMINI_WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
 
@@ -301,9 +275,20 @@ export function useDashboardMechanic(
   /**
    * Handle incoming WebSocket messages
    */
-  const handleWebSocketMessage = useCallback((event: MessageEvent) => {
+  const handleWebSocketMessage = useCallback(async (event: MessageEvent) => {
     try {
-      const data: GeminiServerContent = JSON.parse(event.data);
+      // Handle both string and Blob data
+      let messageData: string;
+      if (event.data instanceof Blob) {
+        messageData = await event.data.text();
+      } else if (typeof event.data === 'string') {
+        messageData = event.data;
+      } else {
+        console.warn('Unexpected WebSocket message type:', typeof event.data);
+        return;
+      }
+
+      const data: GeminiServerContent = JSON.parse(messageData);
 
       if (data.setupComplete) {
         setStatus('listening');

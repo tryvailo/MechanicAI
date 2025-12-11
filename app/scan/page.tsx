@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDashboardMechanic, SessionStatus, SessionMode } from '@/hooks/useDashboardMechanic';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Button } from '@/components/ui/button';
+import { Camera, Upload, Mic } from 'lucide-react';
 
 const STATUS_TEXT: Record<SessionStatus, string> = {
   idle: 'Ready to start',
   connecting: 'Connecting to AI...',
   connected: 'Setting up...',
-  listening: 'AI Listening...',
+  listening: 'Listening',
   error: 'Connection error',
 };
 
@@ -21,6 +20,20 @@ const STATUS_COLORS: Record<SessionStatus, string> = {
   error: 'bg-red-600',
 };
 
+// Language detection from text (simple heuristic)
+const detectLanguage = (text: string): string => {
+  if (!text) return '';
+  
+  // Russian characters
+  if (/[а-яА-ЯёЁ]/.test(text)) return 'RU';
+  // German characters
+  if (/[äöüÄÖÜß]/.test(text)) return 'DE';
+  // Spanish/French/Italian
+  if (/[àáâãäåæçèéêëìíîïñòóôõöùúûüý]/.test(text)) return 'ES';
+  // Default to English
+  return 'EN';
+};
+
 export default function ScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,7 +42,7 @@ export default function ScanPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [detectedLanguage, setDetectedLanguage] = useState<string>('');
 
   const {
     isConnected,
@@ -61,16 +74,13 @@ export default function ScanPage() {
         audio: false,
       });
 
-      // Double-check mode hasn't changed
       if (mode !== 'stream' || !videoRef.current) {
         stream.getTracks().forEach(track => track.stop());
         return;
       }
 
-      // Set srcObject and wait a bit for it to be ready
       videoRef.current.srcObject = stream;
       
-      // Wait for video to be ready
       await new Promise<void>((resolve, reject) => {
         if (!videoRef.current) {
           reject(new Error('Video element not available'));
@@ -91,37 +101,31 @@ export default function ScanPage() {
         video.addEventListener('loadedmetadata', onLoadedMetadata);
         video.addEventListener('error', onError);
 
-        // Timeout fallback
         setTimeout(() => {
           video.removeEventListener('loadedmetadata', onLoadedMetadata);
           video.removeEventListener('error', onError);
-          resolve(); // Continue anyway
+          resolve();
         }, 2000);
       });
 
-      // Check again before playing
       if (mode !== 'stream' || !videoRef.current) {
         stream.getTracks().forEach(track => track.stop());
         return;
       }
 
-      // Play with error handling
       try {
         await videoRef.current.play();
       } catch (playError: any) {
-        // Ignore AbortError - it means the video was interrupted, which is fine
         if (playError?.name !== 'AbortError' && playError?.name !== 'NotAllowedError') {
           throw playError;
         }
       }
 
-      // Final check before setting ready state
       if (mode === 'stream' && videoRef.current) {
         setCameraReady(true);
         setCameraError(null);
       }
     } catch (error: any) {
-      // Ignore AbortError - it's expected when switching modes
       if (error?.name === 'AbortError') {
         return;
       }
@@ -140,7 +144,6 @@ export default function ScanPage() {
     if (mode === 'stream') {
       setupCamera();
     } else {
-      // Stop camera when switching to static mode
       if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
@@ -213,9 +216,6 @@ export default function ScanPage() {
   // Analyze static image
   const handleAnalyzePhoto = useCallback(async () => {
     if (!selectedImage) return;
-
-    setIsAnalyzing(true);
-    // Start session - the image will be sent automatically when setupComplete is received
     await startSession();
   }, [selectedImage, startSession]);
 
@@ -223,14 +223,13 @@ export default function ScanPage() {
   useEffect(() => {
     if (mode === 'static' && status === 'listening' && selectedImage) {
       sendStaticImage(selectedImage);
-      setIsAnalyzing(false);
     }
   }, [mode, status, selectedImage, sendStaticImage]);
 
   const handleToggleSession = useCallback(() => {
     if (isConnected) {
       stopSession();
-      setIsAnalyzing(false);
+      setDetectedLanguage('');
     } else {
       if (mode === 'stream') {
         startSession();
@@ -239,6 +238,26 @@ export default function ScanPage() {
       }
     }
   }, [isConnected, mode, selectedImage, startSession, stopSession, handleAnalyzePhoto]);
+
+  // Monitor console logs for language detection (simple approach)
+  useEffect(() => {
+    const originalLog = console.log;
+    console.log = (...args: any[]) => {
+      originalLog(...args);
+      const message = args.join(' ');
+      if (message.includes('[Gemini Response]:')) {
+        const text = message.replace('[Gemini Response]:', '').trim();
+        const lang = detectLanguage(text);
+        if (lang) {
+          setDetectedLanguage(lang);
+        }
+      }
+    };
+
+    return () => {
+      console.log = originalLog;
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
@@ -255,14 +274,10 @@ export default function ScanPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
               </span>
-              {/* Audio Visualizer */}
-              <div className="flex items-center gap-0.5 ml-1">
-                <div className="w-0.5 h-3 bg-white rounded-full animate-waveform" style={{ animationDelay: '0s' }} />
-                <div className="w-0.5 h-4 bg-white rounded-full animate-waveform" style={{ animationDelay: '0.2s' }} />
-                <div className="w-0.5 h-3 bg-white rounded-full animate-waveform" style={{ animationDelay: '0.4s' }} />
-                <div className="w-0.5 h-5 bg-white rounded-full animate-waveform" style={{ animationDelay: '0.6s' }} />
-                <div className="w-0.5 h-3 bg-white rounded-full animate-waveform" style={{ animationDelay: '0.8s' }} />
-              </div>
+              <Mic className="h-4 w-4" />
+              {detectedLanguage && (
+                <span className="ml-1 text-xs opacity-90">({detectedLanguage})</span>
+              )}
             </>
           )}
           {status === 'connecting' && (
@@ -281,35 +296,45 @@ export default function ScanPage() {
         )}
       </div>
 
-      {/* Mode Toggle */}
+      {/* Mode Toggle Header */}
       <div className="absolute top-20 left-0 right-0 z-20 px-4 safe-area-top">
-        <ToggleGroup
-          type="single"
-          value={mode}
-          onValueChange={(value) => {
-            if (value && (value === 'stream' || value === 'static')) {
-              if (isConnected) {
-                stopSession();
-              }
-              setMode(value);
+        <div className="flex gap-2 bg-zinc-900/80 backdrop-blur-sm rounded-lg p-1">
+          <button
+            onClick={() => {
+              if (isConnected) stopSession();
+              setMode('stream');
               setSelectedImage(null);
-            }
-          }}
-          className="w-full bg-zinc-900/80 backdrop-blur-sm rounded-lg p-1"
-        >
-          <ToggleGroupItem value="stream" className="flex-1" aria-label="Live Camera">
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
+            }}
+            className={`
+              flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md
+              transition-all duration-200 font-medium text-sm
+              ${mode === 'stream'
+                ? 'bg-[#21808D] text-white shadow-md'
+                : 'text-zinc-400 hover:text-white'
+              }
+            `}
+          >
+            <Camera className="w-4 h-4" />
             Live Camera
-          </ToggleGroupItem>
-          <ToggleGroupItem value="static" className="flex-1" aria-label="Upload Photo">
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+          </button>
+          <button
+            onClick={() => {
+              if (isConnected) stopSession();
+              setMode('static');
+            }}
+            className={`
+              flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md
+              transition-all duration-200 font-medium text-sm
+              ${mode === 'static'
+                ? 'bg-[#21808D] text-white shadow-md'
+                : 'text-zinc-400 hover:text-white'
+              }
+            `}
+          >
+            <Upload className="w-4 h-4" />
             Upload Photo
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </button>
+        </div>
       </div>
 
       {/* Content Area */}
@@ -322,12 +347,12 @@ export default function ScanPage() {
                 <div className="text-center p-6">
                   <div className="text-5xl mb-4">📷</div>
                   <p className="text-white text-lg mb-4">{cameraError}</p>
-                  <Button
+                  <button
                     onClick={setupCamera}
-                    className="bg-[#21808D] hover:bg-[#1a6b75] text-white"
+                    className="px-6 py-3 bg-[#21808D] hover:bg-[#1a6b75] text-white rounded-xl font-medium transition-colors"
                   >
                     Retry Camera Access
-                  </Button>
+                  </button>
                 </div>
               </div>
             ) : (
@@ -372,25 +397,24 @@ export default function ScanPage() {
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 p-4">
             {selectedImage ? (
               <div className="w-full h-full flex flex-col items-center justify-center">
-                <div className="relative w-full max-w-2xl aspect-video mb-4 rounded-lg overflow-hidden border-2 border-zinc-700">
+                <div className="relative w-full max-w-2xl aspect-video mb-4 rounded-lg overflow-hidden border-2 border-zinc-700 shadow-xl">
                   <img
                     src={selectedImage}
                     alt="Selected photo"
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain bg-black"
                   />
                 </div>
-                <Button
+                <button
                   onClick={() => {
                     setSelectedImage(null);
                     if (fileInputRef.current) {
                       fileInputRef.current.value = '';
                     }
                   }}
-                  variant="outline"
-                  className="mb-4"
+                  className="px-4 py-2 text-zinc-400 hover:text-white text-sm transition-colors"
                 >
                   Choose Different Photo
-                </Button>
+                </button>
               </div>
             ) : (
               <div
@@ -416,24 +440,12 @@ export default function ScanPage() {
                   className="hidden"
                 />
                 <div className="text-center">
-                  <svg
-                    className="mx-auto h-16 w-16 text-zinc-500 mb-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
+                  <Upload className="mx-auto h-16 w-16 text-zinc-500 mb-4" />
                   <p className="text-white text-lg font-medium mb-2">
                     Drop a photo here or click to select
                   </p>
                   <p className="text-zinc-400 text-sm">
-                    Upload a screenshot of an error code or dashboard
+                    Upload a screenshot of dashboard or error code
                   </p>
                 </div>
               </div>
@@ -454,7 +466,7 @@ export default function ScanPage() {
                 )
               : (selectedImage
                   ? (isConnected
-                      ? 'Ask questions about the photo'
+                      ? 'Ask questions about the photo - microphone is active'
                       : 'Ready to analyze this photo'
                     )
                   : 'Upload a photo to get started'
@@ -463,13 +475,12 @@ export default function ScanPage() {
           </p>
 
           {/* Main Button */}
-          <Button
+          <button
             onClick={handleToggleSession}
             disabled={
               (mode === 'stream' && !cameraReady) ||
               (mode === 'static' && !selectedImage) ||
-              status === 'connecting' ||
-              isAnalyzing
+              status === 'connecting'
             }
             className={`
               w-full py-4 px-6 rounded-2xl font-semibold text-lg
@@ -496,7 +507,7 @@ export default function ScanPage() {
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
-                {isAnalyzing ? 'Analyzing...' : 'Analyze this Photo'}
+                Analyze Photo
               </>
             ) : (
               <>
@@ -506,7 +517,7 @@ export default function ScanPage() {
                 Start Diagnostics
               </>
             )}
-          </Button>
+          </button>
 
           {/* Hint */}
           {!isConnected && (
@@ -520,7 +531,7 @@ export default function ScanPage() {
         </div>
       </div>
 
-      {/* Custom styles for animations */}
+      {/* Custom styles */}
       <style jsx>{`
         @keyframes scan {
           0%, 100% { top: 0; opacity: 0; }
@@ -528,21 +539,8 @@ export default function ScanPage() {
           90% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
         }
-        @keyframes waveform {
-          0%, 100% {
-            transform: scaleY(0.5);
-            opacity: 0.5;
-          }
-          50% {
-            transform: scaleY(1);
-            opacity: 1;
-          }
-        }
         .animate-scan {
           animation: scan 2s ease-in-out infinite;
-        }
-        .animate-waveform {
-          animation: waveform 1.5s ease-in-out infinite;
         }
         .safe-area-top {
           padding-top: max(1rem, env(safe-area-inset-top));
@@ -554,4 +552,3 @@ export default function ScanPage() {
     </div>
   );
 }
-
