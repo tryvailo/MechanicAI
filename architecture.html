@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MechanicAI - Архитектура</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e4e4e7;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, #21808D, #38b2ac);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #a1a1aa;
+      margin-bottom: 3rem;
+    }
+    
+    .section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    h2 {
+      color: #21808D;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    h2::before {
+      content: '';
+      width: 4px;
+      height: 24px;
+      background: #21808D;
+      border-radius: 2px;
+    }
+    
+    .mermaid {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .tech-stack {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .tech-card {
+      background: rgba(33, 128, 141, 0.1);
+      border: 1px solid rgba(33, 128, 141, 0.3);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    
+    .tech-card h3 {
+      color: #21808D;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    
+    .tech-card p {
+      color: #e4e4e7;
+      font-size: 0.95rem;
+    }
+    
+    .file-tree {
+      background: #0d1117;
+      border-radius: 12px;
+      padding: 1.5rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+    
+    .file-tree .folder {
+      color: #58a6ff;
+    }
+    
+    .file-tree .file {
+      color: #8b949e;
+    }
+    
+    .file-tree .comment {
+      color: #6e7681;
+    }
+    
+    .env-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    
+    .env-table th,
+    .env-table td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .env-table th {
+      color: #21808D;
+      font-weight: 600;
+    }
+    
+    .env-table code {
+      background: rgba(33, 128, 141, 0.2);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+      
+      h1 {
+        font-size: 1.75rem;
+      }
+      
+      .section {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🚗 MechanicAI</h1>
+  <p class="subtitle">AI-powered приложение для диагностики автомобилей</p>
+
+  <!-- Общая архитектура -->
+  <div class="section">
+    <h2>Общая архитектура</h2>
+    <div class="mermaid">
+graph TB
+    subgraph Client["Frontend (Next.js App Router)"]
+        Page["app/page.tsx"]
+        Layout["app/layout.tsx"]
+        
+        subgraph Screens["Экраны приложения"]
+            Results["ResultsPage"]
+            Camera["CameraScanner"]
+            Chat["ChatInterface"]
+            History["HistoryScreen"]
+            Places["PlacesScreen"]
+            Analysis["AnalysisResults"]
+        end
+        
+        subgraph UI["UI Components"]
+            TabNav["TabNavigation"]
+            Map["NearbyPlacesMap"]
+            UILib["ui/ (shadcn)"]
+        end
+    end
+    
+    subgraph API["API Routes (Server)"]
+        AnalyzeAPI["/api/analyze-photo"]
+        ChatAPI["/api/chat"]
+        PlacesAPI["/api/nearby-places"]
+        TranscribeAPI["/api/transcribe"]
+    end
+    
+    subgraph External["External Services"]
+        OpenAI["OpenAI API"]
+        Claude["Claude API"]
+        GooglePlaces["Google Places API"]
+        GoogleMaps["Google Maps JS API"]
+    end
+    
+    Page --> Results
+    Results --> Camera
+    Results --> Chat
+    Results --> History
+    Results --> Places
+    Results --> Analysis
+    Results --> TabNav
+    
+    Places --> Map
+    Map --> GoogleMaps
+    
+    Camera --> AnalyzeAPI
+    Chat --> ChatAPI
+    Places --> PlacesAPI
+    Camera --> TranscribeAPI
+    
+    AnalyzeAPI --> OpenAI
+    AnalyzeAPI --> Claude
+    ChatAPI --> OpenAI
+    ChatAPI --> Claude
+    PlacesAPI --> GooglePlaces
+    TranscribeAPI --> OpenAI
+    </div>
+  </div>
+
+  <!-- Навигация -->
+  <div class="section">
+    <h2>Навигация и экраны</h2>
+    <div class="mermaid">
+flowchart LR
+    subgraph Navigation["Tab Navigation"]
+        direction TB
+        T1["📷 Camera"]
+        T2["📊 Results"]
+        T3["💬 Chat"]
+        T4["📜 History"]
+        T5["📍 Places"]
+    end
+    
+    T1 --> CS["CameraScanner<br/>Фото/видео съёмка<br/>Голосовой ввод<br/>Анализ изображений"]
+    T2 --> AR["AnalysisResults<br/>Результаты диагностики<br/>Список проблем<br/>Рекомендации"]
+    T3 --> CI["ChatInterface<br/>AI чат-бот<br/>Streaming ответы<br/>Markdown рендеринг"]
+    T4 --> HS["HistoryScreen<br/>История сканирований<br/>LocalStorage"]
+    T5 --> PS["PlacesScreen<br/>Nearby Places Map<br/>Автосервисы<br/>Парковки"]
+    </div>
+  </div>
+
+  <!-- Поток анализа фото -->
+  <div class="section">
+    <h2>Поток анализа фото</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant CS as CameraScanner
+    participant API as /api/analyze-photo
+    participant AI as OpenAI/Claude
+    participant AR as AnalysisResults
+    
+    U->>CS: Делает фото
+    CS->>CS: Конвертация в base64
+    CS->>API: POST {image, prompt}
+    API->>API: Выбор провайдера (env)
+    API->>AI: Vision API запрос
+    AI-->>API: Анализ изображения
+    API-->>CS: JSON результат
+    CS->>CS: Сохранение в localStorage
+    CS->>AR: Переход на Results
+    AR->>AR: Отображение диагностики
+    </div>
+  </div>
+
+  <!-- Поток чата -->
+  <div class="section">
+    <h2>Поток чата</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant CI as ChatInterface
+    participant API as /api/chat
+    participant AI as OpenAI/Claude
+    
+    U->>CI: Вводит вопрос
+    CI->>CI: Добавляет в messages[]
+    CI->>API: POST {messages, context}
+    API->>API: Формирует system prompt
+    API->>AI: Chat Completion (stream)
+    
+    loop Streaming
+        AI-->>API: chunk
+        API-->>CI: SSE chunk
+        CI->>CI: Обновление UI
+    end
+    
+    CI->>CI: Финальное сообщение
+    </div>
+  </div>
+
+  <!-- Поток Places -->
+  <div class="section">
+    <h2>Поток Places (карта)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant PS as PlacesScreen
+    participant Geo as useGeolocation
+    participant API as /api/nearby-places
+    participant GP as Google Places API
+    participant Map as NearbyPlacesMap
+    participant GM as Google Maps JS
+    
+    U->>PS: Открывает вкладку Places
+    PS->>Geo: Запрос геолокации
+    Geo-->>PS: {lat, lng}
+    
+    PS->>API: POST {lat, lng, radius, types}
+    API->>GP: searchNearby()
+    GP-->>API: places[]
+    API-->>PS: {carRepairs, parkings}
+    
+    PS->>Map: Передача данных
+    Map->>GM: Загрузка скрипта
+    GM-->>Map: API ready
+    Map->>Map: Создание карты
+    Map->>Map: Добавление маркеров
+    
+    U->>Map: Клик на маркер
+    Map->>Map: InfoWindow с деталями
+    </div>
+  </div>
+
+  <!-- Структура файлов -->
+  <div class="section">
+    <h2>Структура файлов</h2>
+    <div class="file-tree">
+<span class="folder">camera-scanning-screen/</span>
+├── <span class="folder">app/</span>                          <span class="comment"># Next.js App Router</span>
+│   ├── <span class="folder">api/</span>                      <span class="comment"># API Routes (серверные)</span>
+│   │   ├── <span class="folder">analyze-photo/</span>        <span class="comment"># Анализ фото через Vision AI</span>
+│   │   ├── <span class="folder">chat/</span>                 <span class="comment"># AI чат</span>
+│   │   ├── <span class="folder">nearby-places/</span>        <span class="comment"># Google Places API</span>
+│   │   └── <span class="folder">transcribe/</span>           <span class="comment"># Транскрипция аудио</span>
+│   ├── <span class="file">layout.tsx</span>                <span class="comment"># Root layout + metadata</span>
+│   └── <span class="file">page.tsx</span>                  <span class="comment"># Главная страница</span>
+│
+├── <span class="folder">components/</span>                   <span class="comment"># React компоненты</span>
+│   ├── <span class="folder">ui/</span>                       <span class="comment"># shadcn/ui компоненты</span>
+│   ├── <span class="file">results-page.tsx</span>          <span class="comment"># Главный контейнер с табами</span>
+│   ├── <span class="file">camera-scanner.tsx</span>        <span class="comment"># Камера + анализ</span>
+│   ├── <span class="file">chat-interface.tsx</span>        <span class="comment"># AI чат</span>
+│   ├── <span class="file">history-screen.tsx</span>        <span class="comment"># История</span>
+│   ├── <span class="file">places-screen.tsx</span>         <span class="comment"># Nearby Places</span>
+│   ├── <span class="file">nearby-places-map.tsx</span>     <span class="comment"># Google Maps</span>
+│   └── <span class="file">tab-navigation.tsx</span>        <span class="comment"># Нижняя навигация</span>
+│
+├── <span class="folder">lib/</span>                          <span class="comment"># Утилиты и конфигурация</span>
+│   ├── <span class="folder">config/</span>                   <span class="comment"># Конфигурации API</span>
+│   ├── <span class="folder">hooks/</span>                    <span class="comment"># React хуки</span>
+│   └── <span class="folder">utils/</span>                    <span class="comment"># Вспомогательные функции</span>
+│
+└── <span class="folder">public/</span>                       <span class="comment"># Статические файлы</span>
+    └── <span class="folder">markers/</span>                  <span class="comment"># SVG маркеры для карты</span>
+    </div>
+  </div>
+
+  <!-- Стек технологий -->
+  <div class="section">
+    <h2>Стек технологий</h2>
+    <div class="tech-stack">
+      <div class="tech-card">
+        <h3>Frontend</h3>
+        <p>Next.js 16, React 19, TypeScript</p>
+      </div>
+      <div class="tech-card">
+        <h3>UI</h3>
+        <p>Tailwind CSS 4, shadcn/ui, Radix UI</p>
+      </div>
+      <div class="tech-card">
+        <h3>Maps</h3>
+        <p>Google Maps JS API, Google Places API (New)</p>
+      </div>
+      <div class="tech-card">
+        <h3>AI</h3>
+        <p>OpenAI GPT-4o (Vision + Chat), Claude</p>
+      </div>
+      <div class="tech-card">
+        <h3>State</h3>
+        <p>React hooks, localStorage</p>
+      </div>
+      <div class="tech-card">
+        <h3>Deploy</h3>
+        <p>Vercel</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Переменные окружения -->
+  <div class="section">
+    <h2>Переменные окружения</h2>
+    <table class="env-table">
+      <tr>
+        <th>Переменная</th>
+        <th>Описание</th>
+      </tr>
+      <tr>
+        <td><code>OPENAI_API_KEY</code></td>
+        <td>API ключ OpenAI</td>
+      </tr>
+      <tr>
+        <td><code>CLAUDE_API_KEY</code></td>
+        <td>API ключ Anthropic Claude</td>
+      </tr>
+      <tr>
+        <td><code>VISION_API_PROVIDER</code></td>
+        <td>Провайдер для анализа фото (openai | claude)</td>
+      </tr>
+      <tr>
+        <td><code>CHAT_API_PROVIDER</code></td>
+        <td>Провайдер для чата (openai | claude)</td>
+      </tr>
+      <tr>
+        <td><code>GOOGLE_PLACES_API_KEY</code></td>
+        <td>Server-side ключ Google Places API</td>
+      </tr>
+      <tr>
+        <td><code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code></td>
+        <td>Client-side ключ Google Maps JS API</td>
+      </tr>
+      <tr>
+        <td><code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code></td>
+        <td>ID стиля карты Google Maps</td>
+      </tr>
+    </table>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#21808D',
+        primaryTextColor: '#fff',
+        primaryBorderColor: '#38b2ac',
+        lineColor: '#4a5568',
+        secondaryColor: '#2d3748',
+        tertiaryColor: '#1a202c',
+        background: '#1a1a2e',
+        mainBkg: '#1e3a5f',
+        secondBkg: '#234e52',
+        nodeBorder: '#4299e1',
+        clusterBkg: 'rgba(33, 128, 141, 0.1)',
+        clusterBorder: 'rgba(33, 128, 141, 0.3)',
+        titleColor: '#e4e4e7',
+        edgeLabelBackground: '#1a1a2e',
+        actorBkg: '#21808D',
+        actorBorder: '#38b2ac',
+        actorTextColor: '#fff',
+        signalColor: '#e4e4e7',
+        signalTextColor: '#e4e4e7'
+      },
+      flowchart: {
+        curve: 'basis',
+        padding: 20
+      },
+      sequence: {
+        actorMargin: 50,
+        messageMargin: 40
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Camera, CheckCircle, MessageCircle, Clock, MapPin } from "lucide-react"
+import { Video, CheckCircle, MessageCircle, Clock, MapPin } from "lucide-react"
 import type { PageTab } from "./types"
 import { cn } from "@/lib/utils"
 
@@ -13,9 +13,9 @@ const ACTIVE_COLOR = "#21808D"
 
 export default function TabNavigation({ currentTab, onTabChange }: TabNavigationProps) {
   const tabs = [
-    { id: "camera" as const, label: "Scan", icon: Camera },
-    { id: "results" as const, label: "Results", icon: CheckCircle },
+    { id: "camera" as const, label: "Scan", icon: Video },
     { id: "chat" as const, label: "Chat", icon: MessageCircle },
+    { id: "results" as const, label: "Results", icon: CheckCircle },
     { id: "places" as const, label: "Places", icon: MapPin },
     { id: "history" as const, label: "History", icon: Clock },
   ]
