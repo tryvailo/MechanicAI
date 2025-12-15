@@ -71,7 +71,6 @@ export default function ChatInterface({ onNavigate, onImageSelect }: ChatInterfa
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null)
 
   const suggestedQuestions = [
     "What does this warning light mean?",
@@ -267,12 +266,6 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
     }
   }
 
-  // Check if Web Speech API is available
-  const isWebSpeechAvailable = () => {
-    return typeof window !== 'undefined' && 
-      ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
-  }
-
   // Get supported mimeType for MediaRecorder
   const getSupportedMimeType = () => {
     const mimeTypes = [
@@ -285,8 +278,33 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
     return mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || ''
   }
 
+  // Primary: Use Gemini API for transcription
+  const transcribeWithGemini = async (audioBlob: Blob): Promise<{ text: string; fallback?: boolean }> => {
+    const formData = new FormData()
+    const extension = audioBlob.type.includes('webm') ? 'webm' : 
+                      audioBlob.type.includes('mp4') ? 'mp4' : 
+                      audioBlob.type.includes('ogg') ? 'ogg' : 'wav'
+    formData.append('audio', audioBlob, `recording.${extension}`)
+
+    const response = await fetch('/api/transcribe-gemini', {
+      method: 'POST',
+      body: formData,
+    })
+
+    const data = await response.json()
+    
+    if (!response.ok) {
+      if (data.fallback) {
+        throw new Error('FALLBACK_TO_WHISPER')
+      }
+      throw new Error(data.error || 'Transcription failed')
+    }
+
+    return { text: data.text || '' }
+  }
+
   // Fallback: Use Whisper API for transcription
-  const transcribeWithWhisper = async (audioBlob: Blob) => {
+  const transcribeWithWhisper = async (audioBlob: Blob): Promise<string> => {
     const formData = new FormData()
     const extension = audioBlob.type.includes('webm') ? 'webm' : 
                       audioBlob.type.includes('mp4') ? 'mp4' : 
@@ -307,72 +325,8 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
     return data.text || ''
   }
 
-  // Start recording with Web Speech API (primary) or MediaRecorder (fallback)
+  // Start recording audio
   const startRecording = async () => {
-    // Try Web Speech API first (free, instant)
-    if (isWebSpeechAvailable()) {
-      try {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-        const recognition = new SpeechRecognition()
-        
-        recognition.continuous = true
-        recognition.interimResults = true
-        recognition.lang = navigator.language || 'en-US'
-        
-        let fullTranscript = ''
-        
-        recognition.onresult = (event) => {
-          let currentTranscript = ''
-          
-          for (let i = 0; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript
-          }
-          
-          fullTranscript = currentTranscript
-          
-          setInput((prev) => {
-            const base = prev.replace(/ \[🎤.*$/, '')
-            return base + ` [🎤 ${currentTranscript}]`
-          })
-        }
-        
-        recognition.onerror = (event) => {
-          console.error('Web Speech API error:', event.error)
-          speechRecognitionRef.current = null
-          setIsRecording(false)
-          
-          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            startRecordingWithWhisper()
-          } else {
-            setInput((prev) => prev.replace(/ \[🎤.*\]$/, ''))
-          }
-        }
-        
-        recognition.onend = () => {
-          setInput((prev) => {
-            const base = prev.replace(/ \[🎤.*\]$/, '')
-            return fullTranscript ? (base + ' ' + fullTranscript).trim() : base.trim()
-          })
-          setIsRecording(false)
-          speechRecognitionRef.current = null
-        }
-        
-        speechRecognitionRef.current = recognition
-        recognition.start()
-        setIsRecording(true)
-        setInput((prev) => prev + ' [🎤]')
-        return
-      } catch (error) {
-        console.error('Web Speech API failed, falling back to Whisper:', error)
-      }
-    }
-    
-    // Fallback to MediaRecorder + Whisper API
-    await startRecordingWithWhisper()
-  }
-
-  // Fallback recording method using MediaRecorder + Whisper
-  const startRecordingWithWhisper = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mimeType = getSupportedMimeType()
@@ -396,22 +350,41 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
         setIsTyping(true)
 
         try {
-          const transcribedText = await transcribeWithWhisper(audioBlob)
+          // Try Gemini first
+          const result = await transcribeWithGemini(audioBlob)
           setInput((prev) => {
             const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
-            return withoutPlaceholder + (transcribedText ? ` ${transcribedText}` : '')
+            return withoutPlaceholder + (result.text ? ` ${result.text}` : '')
           })
         } catch (error) {
-          console.error('Whisper transcription error:', error)
-          const errorMessage = error instanceof Error ? error.message : 'Transcription failed'
-          const userMessage = errorMessage.includes('API key not configured')
-            ? ' [Voice transcription is not configured. Please set OPENAI_API_KEY.]'
-            : ' [Voice transcription failed. Please type your message.]'
-          
-          setInput((prev) => {
-            const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
-            return withoutPlaceholder + userMessage
-          })
+          // If Gemini fails with fallback flag, try Whisper
+          if (error instanceof Error && error.message === 'FALLBACK_TO_WHISPER') {
+            console.log('Gemini unavailable, falling back to Whisper...')
+            try {
+              const whisperText = await transcribeWithWhisper(audioBlob)
+              setInput((prev) => {
+                const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
+                return withoutPlaceholder + (whisperText ? ` ${whisperText}` : '')
+              })
+            } catch (whisperError) {
+              console.error('Whisper fallback error:', whisperError)
+              const errorMessage = whisperError instanceof Error ? whisperError.message : 'Transcription failed'
+              const userMessage = errorMessage.includes('API key not configured')
+                ? ' [Voice transcription is not configured.]'
+                : ' [Voice transcription failed. Please type your message.]'
+              
+              setInput((prev) => {
+                const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
+                return withoutPlaceholder + userMessage
+              })
+            }
+          } else {
+            console.error('Transcription error:', error)
+            setInput((prev) => {
+              const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
+              return withoutPlaceholder + ' [Voice transcription failed. Please type your message.]'
+            })
+          }
         } finally {
           setIsTyping(false)
           audioChunksRef.current = []
@@ -427,15 +400,6 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
   }
 
   const stopRecording = () => {
-    // Stop Web Speech API if active
-    if (speechRecognitionRef.current) {
-      speechRecognitionRef.current.stop()
-      speechRecognitionRef.current = null
-      setIsRecording(false)
-      return
-    }
-    
-    // Stop MediaRecorder if active
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
