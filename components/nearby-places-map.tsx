@@ -175,7 +175,7 @@ function PlaceListItem({
   const isCarRepair = type === 'car_repair';
   const carRepair = isCarRepair ? (place as CarRepairPlace) : null;
   const parking = !isCarRepair ? (place as ParkingPlace) : null;
-  const priceLevelDisplay = parking ? getPriceLevelDisplay(parking.priceLevel) : null;
+  const priceLevelDisplay = parking ? getPriceLevelDisplay(parking.priceLevel, true) : null;
 
   const handleRouteClick = (e: React.MouseEvent) => {
     e.stopPropagation();

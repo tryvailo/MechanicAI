@@ -12,8 +12,17 @@ export type PriceLevelDisplay = {
   colorClass: string;
 };
 
-export function getPriceLevelDisplay(priceLevel: string | null): PriceLevelDisplay | null {
-  if (!priceLevel) return null;
+export function getPriceLevelDisplay(priceLevel: string | null, showUnknown = false): PriceLevelDisplay | null {
+  if (!priceLevel || priceLevel === 'PRICE_LEVEL_UNSPECIFIED') {
+    if (showUnknown) {
+      return {
+        icon: '🅿️',
+        label: 'Paid',
+        colorClass: 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-400',
+      };
+    }
+    return null;
+  }
 
   switch (priceLevel) {
     case 'PRICE_LEVEL_FREE':
