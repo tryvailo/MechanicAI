@@ -596,14 +596,17 @@ export function NearbyPlacesMap({
     };
   }, [cleanupMap]);
 
-  // Create info window content
+  // Store pending route request for InfoWindow button
+  const pendingRouteRef = useRef<{ place: CarRepairPlace | ParkingPlace } | null>(null);
+
+  // Create info window content with button that triggers route
   const createInfoWindowContent = useCallback(
     (place: CarRepairPlace | ParkingPlace, type: 'car_repair' | 'parking') => {
       const isCarRepair = type === 'car_repair';
       const carRepair = isCarRepair ? (place as CarRepairPlace) : null;
-      const routeUrl =
-        place.mapsUri ||
-        `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
+      
+      // Store place data for route button
+      pendingRouteRef.current = { place };
 
       return `
       <div style="max-width: 250px; padding: 8px;">
@@ -618,17 +621,109 @@ export function NearbyPlacesMap({
             : ''
         }
         <p style="margin: 0 0 8px; color: #6B7280; font-size: 12px;">${place.address}</p>
-        <a href="${routeUrl}" target="_blank" rel="noopener noreferrer"
+        <button id="infowindow-route-btn"
            style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px;
                   background: #21808D; color: white; border-radius: 6px; font-size: 12px;
-                  text-decoration: none; font-weight: 500;">
-          Route
-        </a>
+                  border: none; cursor: pointer; font-weight: 500;">
+          🛣️ Build Route
+        </button>
       </div>
     `;
     },
     []
   );
+
+  // Listen for InfoWindow route button click
+  useEffect(() => {
+    const handleInfoWindowClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.id === 'infowindow-route-btn' && pendingRouteRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        const { place } = pendingRouteRef.current;
+        
+        // Close InfoWindow first
+        if (infoWindowRef.current) {
+          infoWindowRef.current.close();
+        }
+        
+        // Build route using our API
+        (async () => {
+          if (!googleMapRef.current) return;
+
+          setIsRouteActive(true);
+
+          // Clear previous route
+          if (routePolylineRef.current) {
+            try {
+              routePolylineRef.current.setMap(null);
+            } catch (error) {
+              // Ignore
+            }
+            routePolylineRef.current = null;
+          }
+
+          try {
+            const response = await fetch('/api/directions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                origin: { lat: userLocation.lat, lng: userLocation.lng },
+                destination: { lat: place.lat, lng: place.lng },
+              }),
+            });
+
+            const data = await response.json();
+
+            if (data.routes && data.routes.length > 0 && data.routes[0].polyline?.encodedPolyline) {
+              const path = decodePolyline(data.routes[0].polyline.encodedPolyline);
+              
+              routePolylineRef.current = new window.google.maps.Polyline({
+                path,
+                geodesic: true,
+                strokeColor: '#21808D',
+                strokeOpacity: 0.8,
+                strokeWeight: 5,
+                map: googleMapRef.current,
+              });
+
+              const bounds = new window.google.maps.LatLngBounds();
+              bounds.extend(userLocation);
+              bounds.extend({ lat: place.lat, lng: place.lng });
+              googleMapRef.current.fitBounds(bounds, 50);
+
+              // Show route info
+              const distanceKm = (data.routes[0].distanceMeters / 1000).toFixed(1);
+              const durationMin = Math.round(parseInt(data.routes[0].duration.replace('s', '')) / 60);
+              
+              if (infoWindowRef.current) {
+                infoWindowRef.current.setContent(`
+                  <div style="padding: 8px; font-family: system-ui;">
+                    <h4 style="margin: 0 0 8px; font-size: 14px; font-weight: 600;">${place.name}</h4>
+                    <div style="display: flex; gap: 12px; font-size: 13px; color: #666;">
+                      <span>🛣️ ${distanceKm} km</span>
+                      <span>⏱️ ${durationMin} min</span>
+                    </div>
+                    <p style="margin: 8px 0 0; color: #666; font-size: 12px;">${place.address}</p>
+                  </div>
+                `);
+                infoWindowRef.current.setPosition({ lat: place.lat, lng: place.lng });
+                infoWindowRef.current.open(googleMapRef.current);
+              }
+            } else {
+              throw new Error(data.error || 'Failed to get route');
+            }
+          } catch (error) {
+            console.error('Route calculation failed:', error);
+            setIsRouteActive(false);
+          }
+        })();
+      }
+    };
+
+    document.addEventListener('click', handleInfoWindowClick);
+    return () => document.removeEventListener('click', handleInfoWindowClick);
+  }, [userLocation]);
 
   // Add markers for places
   useEffect(() => {
@@ -1003,93 +1098,136 @@ export function NearbyPlacesMap({
     [carRepairs, parkings, createInfoWindowContent]
   );
 
-  // Handle route building
+  // Handle route building - uses our Routes API instead of client-side Directions
   const handleRouteClick = useCallback(
-    (place: CarRepairPlace | ParkingPlace) => {
-      if (!directionsServiceRef.current || !directionsRendererRef.current || !googleMapRef.current) {
-        // Fallback to external Google Maps if Directions API not available
-        const url =
-          place.mapsUri ||
-          `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
-        window.open(url, '_blank', 'noopener,noreferrer');
-        return;
-      }
+    async (place: CarRepairPlace | ParkingPlace) => {
+      if (!googleMapRef.current) return;
 
       setIsRouteActive(true);
 
-      // Clear previous route
-      if (directionsRendererRef.current) {
+      // Clear previous route polyline
+      if (routePolylineRef.current) {
         try {
-          directionsRendererRef.current.setMap(null);
-          directionsRendererRef.current.setMap(googleMapRef.current);
+          routePolylineRef.current.setMap(null);
         } catch (error) {
-          // Ignore errors, try to continue
+          // Ignore
         }
+        routePolylineRef.current = null;
       }
 
-      // Build route from user location to selected place
-      directionsServiceRef.current.route(
-        {
-          origin: userLocation,
-          destination: { lat: place.lat, lng: place.lng },
-          travelMode: window.google.maps.TravelMode.DRIVING,
-        },
-        (result, status) => {
-          if (status === window.google.maps.DirectionsStatus.OK && result && directionsRendererRef.current) {
-            try {
-              // Ensure result is a valid DirectionsResult object
-              if (result && typeof result === 'object' && result.routes && Array.isArray(result.routes) && result.routes.length > 0) {
-                directionsRendererRef.current.setDirections(result);
-                // Fit map to show entire route
-                if (googleMapRef.current) {
-                  const bounds = new window.google.maps.LatLngBounds();
-                  result.routes[0].legs.forEach((leg) => {
-                    bounds.extend(leg.start_location);
-                    bounds.extend(leg.end_location);
-                  });
-                  googleMapRef.current.fitBounds(bounds);
-                }
-              } else {
-                throw new Error('Invalid directions result');
-              }
-            } catch (error) {
-              console.error('Error setting directions:', error);
-              setIsRouteActive(false);
-              // Fallback to external Google Maps
-              const url =
-                place.mapsUri ||
-                `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
-              window.open(url, '_blank', 'noopener,noreferrer');
-            }
-          } else {
-            console.error('Directions request failed:', status);
-            setIsRouteActive(false);
-            // Fallback to external Google Maps
-            const url =
-              place.mapsUri ||
-              `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
-            window.open(url, '_blank', 'noopener,noreferrer');
+      try {
+        // Use our server-side Routes API
+        const response = await fetch('/api/directions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin: { lat: userLocation.lat, lng: userLocation.lng },
+            destination: { lat: place.lat, lng: place.lng },
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.routes && data.routes.length > 0 && data.routes[0].polyline?.encodedPolyline) {
+          const path = decodePolyline(data.routes[0].polyline.encodedPolyline);
+          
+          routePolylineRef.current = new window.google.maps.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: '#21808D',
+            strokeOpacity: 0.8,
+            strokeWeight: 5,
+            map: googleMapRef.current,
+          });
+
+          // Fit bounds to show entire route
+          const bounds = new window.google.maps.LatLngBounds();
+          bounds.extend(userLocation);
+          bounds.extend({ lat: place.lat, lng: place.lng });
+          googleMapRef.current.fitBounds(bounds, 50);
+
+          // Show route info in InfoWindow
+          const distanceKm = (data.routes[0].distanceMeters / 1000).toFixed(1);
+          const durationMin = Math.round(parseInt(data.routes[0].duration.replace('s', '')) / 60);
+          
+          if (infoWindowRef.current) {
+            infoWindowRef.current.setContent(`
+              <div style="padding: 8px; font-family: system-ui;">
+                <h4 style="margin: 0 0 8px; font-size: 14px; font-weight: 600;">${place.name}</h4>
+                <div style="display: flex; gap: 12px; font-size: 13px; color: #666;">
+                  <span>🛣️ ${distanceKm} km</span>
+                  <span>⏱️ ${durationMin} min</span>
+                </div>
+                <p style="margin: 8px 0 0; color: #666; font-size: 12px;">${place.address}</p>
+              </div>
+            `);
+            infoWindowRef.current.setPosition({ lat: place.lat, lng: place.lng });
+            infoWindowRef.current.open(googleMapRef.current);
           }
+        } else {
+          throw new Error(data.error || 'Failed to get route');
         }
-      );
+      } catch (error) {
+        console.error('Route calculation failed:', error);
+        setIsRouteActive(false);
+        
+        // Simple fallback: draw straight line
+        if (googleMapRef.current) {
+          routePolylineRef.current = new window.google.maps.Polyline({
+            path: [userLocation, { lat: place.lat, lng: place.lng }],
+            geodesic: true,
+            strokeColor: '#21808D',
+            strokeOpacity: 0.5,
+            strokeWeight: 3,
+            icons: [{
+              icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
+              offset: '0',
+              repeat: '15px'
+            }],
+            map: googleMapRef.current,
+          });
+
+          const bounds = new window.google.maps.LatLngBounds();
+          bounds.extend(userLocation);
+          bounds.extend({ lat: place.lat, lng: place.lng });
+          googleMapRef.current.fitBounds(bounds, 50);
+          
+          setIsRouteActive(true);
+        }
+      }
     },
     [userLocation]
   );
 
   // Clear route function
   const clearRoute = useCallback(() => {
-    if (directionsRendererRef.current) {
+    // Clear polyline route
+    if (routePolylineRef.current) {
       try {
-        directionsRendererRef.current.setMap(null);
-        setIsRouteActive(false);
+        routePolylineRef.current.setMap(null);
       } catch (error) {
-        // Ignore errors
-        setIsRouteActive(false);
+        // Ignore
       }
-    } else {
-      setIsRouteActive(false);
+      routePolylineRef.current = null;
     }
-  }, []);
+    
+    // Close info window
+    if (infoWindowRef.current) {
+      try {
+        infoWindowRef.current.close();
+      } catch (error) {
+        // Ignore
+      }
+    }
+    
+    setIsRouteActive(false);
+    
+    // Re-center on user location
+    if (googleMapRef.current) {
+      googleMapRef.current.setCenter(userLocation);
+      googleMapRef.current.setZoom(14);
+    }
+  }, [userLocation]);
 
   // Clear route when a new place is selected (but keep it if route is active)
   // Route will be cleared when user clicks on a different place
