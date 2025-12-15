@@ -71,6 +71,7 @@ export default function ChatInterface({ onNavigate, onImageSelect }: ChatInterfa
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null)
 
   const suggestedQuestions = [
     "What does this warning light mean?",
@@ -266,12 +267,122 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
     }
   }
 
+  // Check if Web Speech API is available
+  const isWebSpeechAvailable = () => {
+    return typeof window !== 'undefined' && 
+      ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+  }
+
+  // Get supported mimeType for MediaRecorder
+  const getSupportedMimeType = () => {
+    const mimeTypes = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg',
+      'audio/wav'
+    ]
+    return mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || ''
+  }
+
+  // Fallback: Use Whisper API for transcription
+  const transcribeWithWhisper = async (audioBlob: Blob) => {
+    const formData = new FormData()
+    const extension = audioBlob.type.includes('webm') ? 'webm' : 
+                      audioBlob.type.includes('mp4') ? 'mp4' : 
+                      audioBlob.type.includes('ogg') ? 'ogg' : 'wav'
+    formData.append('audio', audioBlob, `recording.${extension}`)
+
+    const response = await fetch('/api/transcribe', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Transcription failed')
+    }
+
+    const data = await response.json()
+    return data.text || ''
+  }
+
+  // Start recording with Web Speech API (primary) or MediaRecorder (fallback)
   const startRecording = async () => {
+    // Try Web Speech API first (free, instant)
+    if (isWebSpeechAvailable()) {
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+        const recognition = new SpeechRecognition()
+        
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.lang = navigator.language || 'en-US' // Auto-detect user's language
+        
+        let finalTranscript = ''
+        
+        recognition.onresult = (event) => {
+          let interimTranscript = ''
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + ' '
+            } else {
+              interimTranscript += transcript
+            }
+          }
+          
+          // Update input with current transcription
+          setInput((prev) => {
+            const base = prev.replace(/ \[Listening\.\.\.\].*$/, '').replace(/ \[🎤\].*$/, '')
+            const displayText = finalTranscript + interimTranscript
+            return base + (displayText ? ` ${displayText.trim()}` : ' [🎤]')
+          })
+        }
+        
+        recognition.onerror = (event) => {
+          console.error('Web Speech API error:', event.error)
+          // If Web Speech fails, fall back to Whisper
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            startRecordingWithWhisper()
+          } else {
+            setInput((prev) => prev.replace(/ \[🎤\].*$/, '') + ' [Voice recognition failed]')
+            setIsRecording(false)
+          }
+        }
+        
+        recognition.onend = () => {
+          // Clean up the input display
+          setInput((prev) => {
+            const cleaned = prev.replace(/ \[🎤\].*$/, '').replace(/ \[Listening\.\.\.\].*$/, '')
+            return cleaned.trim()
+          })
+          setIsRecording(false)
+          speechRecognitionRef.current = null
+        }
+        
+        speechRecognitionRef.current = recognition
+        recognition.start()
+        setIsRecording(true)
+        setInput((prev) => prev + ' [🎤]')
+        return
+      } catch (error) {
+        console.error('Web Speech API failed, falling back to Whisper:', error)
+      }
+    }
+    
+    // Fallback to MediaRecorder + Whisper API
+    await startRecordingWithWhisper()
+  }
+
+  // Fallback recording method using MediaRecorder + Whisper
+  const startRecordingWithWhisper = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      })
+      const mimeType = getSupportedMimeType()
+      
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
 
@@ -284,42 +395,22 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop())
         
-        // Create audio blob from recorded chunks
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' })
         
-        // Show loading state
         setInput((prev) => prev + " [Transcribing...]")
         setIsTyping(true)
 
         try {
-          // Send audio to transcription API
-          const formData = new FormData()
-          formData.append('audio', audioBlob, 'recording.webm')
-
-          const response = await fetch('/api/transcribe', {
-            method: 'POST',
-            body: formData,
-          })
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            throw new Error(errorData.error || 'Transcription failed')
-          }
-
-          const data = await response.json()
-          const transcribedText = data.text || ''
-
-          // Replace "[Transcribing...]" with transcribed text
+          const transcribedText = await transcribeWithWhisper(audioBlob)
           setInput((prev) => {
             const withoutPlaceholder = prev.replace(' [Transcribing...]', '')
             return withoutPlaceholder + (transcribedText ? ` ${transcribedText}` : '')
           })
         } catch (error) {
-          console.error('Transcription error:', error)
-          // Replace with error message
+          console.error('Whisper transcription error:', error)
           const errorMessage = error instanceof Error ? error.message : 'Transcription failed'
           const userMessage = errorMessage.includes('API key not configured')
-            ? ' [Voice transcription is not configured. Please set OPENAI_API_KEY in environment variables.]'
+            ? ' [Voice transcription is not configured. Please set OPENAI_API_KEY.]'
             : ' [Voice transcription failed. Please type your message.]'
           
           setInput((prev) => {
@@ -328,7 +419,6 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
           })
         } finally {
           setIsTyping(false)
-          // Clear audio chunks
           audioChunksRef.current = []
         }
       }
@@ -342,6 +432,15 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
   }
 
   const stopRecording = () => {
+    // Stop Web Speech API if active
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop()
+      speechRecognitionRef.current = null
+      setIsRecording(false)
+      return
+    }
+    
+    // Stop MediaRecorder if active
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
