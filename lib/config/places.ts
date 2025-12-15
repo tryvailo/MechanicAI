@@ -179,6 +179,7 @@ export type ParkingPlace = {
   lat: number;
   lng: number;
   mapsUri: string;
+  priceLevel: string | null;
   distance: number;
 };
 

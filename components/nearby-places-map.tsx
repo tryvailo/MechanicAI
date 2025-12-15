@@ -3,7 +3,8 @@
 /// <reference types="google.maps" />
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation, Star, Wrench, Car } from 'lucide-react';
+import { MapPin, Navigation, Star, Wrench, Car, Clock } from 'lucide-react';
+import { getPriceLevelDisplay } from '@/lib/utils/price-level';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ export type ParkingPlace = {
   lat: number;
   lng: number;
   mapsUri: string;
+  priceLevel: string | null;
   distance: number;
 };
 
@@ -41,10 +43,18 @@ export type UserLocation = {
   lng: number;
 };
 
+export type DestinationInfo = {
+  address: string;
+  lat: number;
+  lng: number;
+};
+
 type NearbyPlacesMapProps = {
   carRepairs: CarRepairPlace[];
   parkings: ParkingPlace[];
   userLocation: UserLocation;
+  destination?: DestinationInfo | null;
+  routePolyline?: string;
   isLoading?: boolean;
   error?: string | null;
 };
@@ -164,6 +174,8 @@ function PlaceListItem({
 }) {
   const isCarRepair = type === 'car_repair';
   const carRepair = isCarRepair ? (place as CarRepairPlace) : null;
+  const parking = !isCarRepair ? (place as ParkingPlace) : null;
+  const priceLevelDisplay = parking ? getPriceLevelDisplay(parking.priceLevel) : null;
 
   const handleRouteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -190,12 +202,26 @@ function PlaceListItem({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-1.5 sm:gap-2">
           <h4 className="truncate font-medium text-xs leading-tight sm:text-sm">{place.name}</h4>
-          {carRepair?.rating && (
-            <Badge variant="secondary" className="shrink-0 gap-0.5 bg-amber-100 px-1 py-0 text-[10px] text-amber-700 sm:gap-1 sm:px-1.5 sm:py-0.5 sm:text-xs">
-              <Star className="h-2.5 w-2.5 fill-current sm:h-3 sm:w-3" />
-              {carRepair.rating.toFixed(1)}
-            </Badge>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {priceLevelDisplay && (
+              <Badge 
+                variant="secondary" 
+                className={cn(
+                  "gap-0.5 px-1 py-0 text-[10px] sm:gap-1 sm:px-1.5 sm:py-0.5 sm:text-xs",
+                  priceLevelDisplay.colorClass
+                )}
+              >
+                <span className="text-[10px] sm:text-xs">{priceLevelDisplay.icon}</span>
+                {priceLevelDisplay.label}
+              </Badge>
+            )}
+            {carRepair?.rating && (
+              <Badge variant="secondary" className="gap-0.5 bg-amber-100 px-1 py-0 text-[10px] text-amber-700 sm:gap-1 sm:px-1.5 sm:py-0.5 sm:text-xs">
+                <Star className="h-2.5 w-2.5 fill-current sm:h-3 sm:w-3" />
+                {carRepair.rating.toFixed(1)}
+              </Badge>
+            )}
+          </div>
         </div>
 
         <p className="mt-0.5 line-clamp-1 text-muted-foreground text-[11px] sm:text-xs">{place.address}</p>
@@ -247,11 +273,52 @@ function ErrorDisplay({ message }: { message: string }) {
   );
 }
 
+// Decode polyline utility
+function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
+  const points: Array<{ lat: number; lng: number }> = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let shift = 0;
+    let result = 0;
+    let byte: number;
+
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+
+  return points;
+}
+
 // Main Component
 export function NearbyPlacesMap({
   carRepairs,
   parkings,
   userLocation,
+  destination,
+  routePolyline,
   isLoading = false,
   error = null,
 }: NearbyPlacesMapProps) {
@@ -261,6 +328,8 @@ export function NearbyPlacesMap({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
+  const destinationMarkerRef = useRef<google.maps.Marker | google.maps.marker.AdvancedMarkerElement | null>(null);
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'car_repair' | 'parking'>('car_repair');
@@ -496,8 +565,6 @@ export function NearbyPlacesMap({
       if (directionsRendererRef.current) {
         try {
           directionsRendererRef.current.setMap(null);
-          // Clear directions with empty routes array instead of null
-          directionsRendererRef.current.setDirections({ routes: [] });
           window.google.maps.event.clearInstanceListeners(directionsRendererRef.current);
         } catch (error) {
           // Ignore errors
@@ -769,6 +836,125 @@ export function NearbyPlacesMap({
     };
   }, [mapsLoaded, carRepairs, parkings, createInfoWindowContent, mapId, userLocation, isRouteActive]);
 
+  // Draw route polyline and destination marker
+  useEffect(() => {
+    if (!mapsLoaded || !googleMapRef.current) return;
+
+    // Clear existing route polyline
+    if (routePolylineRef.current) {
+      try {
+        routePolylineRef.current.setMap(null);
+      } catch (error) {
+        // Ignore
+      }
+      routePolylineRef.current = null;
+    }
+
+    // Clear existing destination marker
+    if (destinationMarkerRef.current) {
+      try {
+        if (destinationMarkerRef.current instanceof window.google.maps.Marker) {
+          destinationMarkerRef.current.setMap(null);
+        } else if ('map' in destinationMarkerRef.current) {
+          destinationMarkerRef.current.map = null;
+        }
+      } catch (error) {
+        // Ignore
+      }
+      destinationMarkerRef.current = null;
+    }
+
+    // Draw route if polyline provided
+    if (routePolyline && googleMapRef.current) {
+      try {
+        const path = decodePolyline(routePolyline);
+        routePolylineRef.current = new window.google.maps.Polyline({
+          path,
+          geodesic: true,
+          strokeColor: '#21808D',
+          strokeOpacity: 0.8,
+          strokeWeight: 4,
+          map: googleMapRef.current,
+        });
+      } catch (error) {
+        console.error('Failed to draw route polyline:', error);
+      }
+    }
+
+    // Add destination marker
+    if (destination && googleMapRef.current) {
+      try {
+        const destMarkerImg = document.createElement('div');
+        destMarkerImg.innerHTML = `
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="background: #21808D; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+              📍 Destination
+            </div>
+            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #21808D;"></div>
+          </div>
+        `;
+
+        if (mapId && window.google?.maps?.marker?.AdvancedMarkerElement) {
+          destinationMarkerRef.current = new window.google.maps.marker.AdvancedMarkerElement({
+            map: googleMapRef.current,
+            position: { lat: destination.lat, lng: destination.lng },
+            content: destMarkerImg,
+            title: destination.address,
+          });
+        } else {
+          destinationMarkerRef.current = new window.google.maps.Marker({
+            map: googleMapRef.current,
+            position: { lat: destination.lat, lng: destination.lng },
+            title: destination.address,
+            icon: {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: '#21808D',
+              fillOpacity: 1,
+              strokeColor: '#ffffff',
+              strokeWeight: 2,
+            },
+          });
+        }
+
+        // Fit bounds to show user, destination, and parkings
+        const bounds = new window.google.maps.LatLngBounds();
+        bounds.extend(userLocation);
+        bounds.extend({ lat: destination.lat, lng: destination.lng });
+        parkings.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+        
+        setTimeout(() => {
+          if (googleMapRef.current) {
+            googleMapRef.current.fitBounds(bounds, 50);
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Failed to add destination marker:', error);
+      }
+    }
+
+    return () => {
+      if (routePolylineRef.current) {
+        try {
+          routePolylineRef.current.setMap(null);
+        } catch (error) {
+          // Ignore
+        }
+      }
+      if (destinationMarkerRef.current) {
+        try {
+          if (destinationMarkerRef.current instanceof window.google.maps.Marker) {
+            destinationMarkerRef.current.setMap(null);
+          } else if ('map' in destinationMarkerRef.current) {
+            destinationMarkerRef.current.map = null;
+          }
+        } catch (error) {
+          // Ignore
+        }
+      }
+    };
+  }, [mapsLoaded, destination, routePolyline, userLocation, parkings, mapId]);
+
   // Handle place selection from list
   const handlePlaceClick = useCallback(
     (place: CarRepairPlace | ParkingPlace, type: 'car_repair' | 'parking') => {
@@ -895,8 +1081,6 @@ export function NearbyPlacesMap({
     if (directionsRendererRef.current) {
       try {
         directionsRendererRef.current.setMap(null);
-        // Clear directions with empty routes array
-        directionsRendererRef.current.setDirections({ routes: [] });
         setIsRouteActive(false);
       } catch (error) {
         // Ignore errors

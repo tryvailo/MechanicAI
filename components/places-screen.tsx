@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MapPin, RefreshCw, Navigation, AlertCircle, SlidersHorizontal } from 'lucide-react';
+import { MapPin, RefreshCw, Navigation, AlertCircle, SlidersHorizontal, Search, X, Route, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import {
   NearbyPlacesMap,
   type CarRepairPlace,
@@ -13,11 +14,24 @@ import {
 } from '@/components/nearby-places-map';
 import { useGeolocation } from '@/lib/hooks/useGeolocation';
 import { cn } from '@/lib/utils';
+import { formatDuration, formatDistance } from '@/lib/utils/price-level';
 import type { PageTab } from './types';
 
 type PlacesFilter = {
   carRepairs: boolean;
   parkings: boolean;
+};
+
+type DestinationInfo = {
+  address: string;
+  lat: number;
+  lng: number;
+};
+
+type RouteInfo = {
+  distance: number;
+  duration: string;
+  encodedPolyline: string;
 };
 
 interface PlacesScreenProps {
@@ -46,6 +60,14 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
   });
 
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
+  
+  // Destination search state
+  const [destinationQuery, setDestinationQuery] = useState('');
+  const [destination, setDestination] = useState<DestinationInfo | null>(null);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [isSearchingDestination, setIsSearchingDestination] = useState(false);
+  const [destinationParkings, setDestinationParkings] = useState<ParkingPlace[]>([]);
+  const [showDestinationMode, setShowDestinationMode] = useState(false);
 
   const isLocationGranted = permission === 'granted' && userLocation !== null;
   const isLocationPending = geoLoading;
@@ -165,11 +187,82 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
     const newRadius = value[0];
     console.log('Slider value changed:', { old: radiusKm, new: newRadius, value });
     setRadiusKm(newRadius);
-    // Fetch will be triggered by useEffect when radiusKm changes
   };
 
+  // Search for destination and calculate route
+  const searchDestination = useCallback(async () => {
+    if (!destinationQuery.trim() || !userLocation) return;
+
+    setIsSearchingDestination(true);
+    try {
+      // Use Google Geocoding via Places API to get destination coordinates
+      const geocodeResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destinationQuery)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+      );
+      const geocodeData = await geocodeResponse.json();
+
+      if (geocodeData.results && geocodeData.results.length > 0) {
+        const result = geocodeData.results[0];
+        const destInfo: DestinationInfo = {
+          address: result.formatted_address,
+          lat: result.geometry.location.lat,
+          lng: result.geometry.location.lng,
+        };
+        setDestination(destInfo);
+
+        // Get route from user to destination
+        const directionsResponse = await fetch('/api/directions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin: { lat: userLocation.lat, lng: userLocation.lng },
+            destination: { lat: destInfo.lat, lng: destInfo.lng },
+          }),
+        });
+        const directionsData = await directionsResponse.json();
+
+        if (directionsData.routes && directionsData.routes.length > 0) {
+          const route = directionsData.routes[0];
+          setRouteInfo({
+            distance: route.distanceMeters,
+            duration: route.duration,
+            encodedPolyline: route.polyline?.encodedPolyline || '',
+          });
+        }
+
+        // Search for parkings near destination
+        const parkingsResponse = await fetch('/api/nearby-places', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            latitude: destInfo.lat,
+            longitude: destInfo.lng,
+            radiusMeters: 1000, // 1km around destination
+            placeTypes: ['parking'],
+          }),
+        });
+        const parkingsData = await parkingsResponse.json();
+        setDestinationParkings(parkingsData.parkings || []);
+        setShowDestinationMode(true);
+      }
+    } catch (error) {
+      console.error('Failed to search destination:', error);
+    } finally {
+      setIsSearchingDestination(false);
+    }
+  }, [destinationQuery, userLocation]);
+
+  // Clear destination mode
+  const clearDestination = useCallback(() => {
+    setDestination(null);
+    setRouteInfo(null);
+    setDestinationParkings([]);
+    setDestinationQuery('');
+    setShowDestinationMode(false);
+  }, []);
+
   const filteredCarRepairs = filter.carRepairs ? carRepairs : [];
-  const filteredParkings = filter.parkings ? parkings : [];
+  const filteredParkings = filter.parkings ? (showDestinationMode ? destinationParkings : parkings) : [];
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -215,8 +308,81 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
           )}
         </div>
 
+        {/* Destination Search */}
+        {isLocationGranted && (
+          <div className="mt-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Where are you going? (e.g., Berlin Hauptbahnhof)"
+                  value={destinationQuery}
+                  onChange={(e) => setDestinationQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchDestination()}
+                  className="pl-8 pr-8 h-9 text-sm"
+                  disabled={isSearchingDestination}
+                />
+                {destinationQuery && (
+                  <button
+                    onClick={() => setDestinationQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button
+                onClick={searchDestination}
+                disabled={!destinationQuery.trim() || isSearchingDestination}
+                className="h-9 gap-1.5 bg-[#21808D] hover:bg-[#21808D]/90"
+              >
+                <Route className="h-4 w-4" />
+                <span className="hidden sm:inline">Find Parking</span>
+              </Button>
+            </div>
+
+            {/* Destination Info */}
+            {showDestinationMode && destination && (
+              <div className="mt-2 rounded-lg bg-[#21808D]/10 p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[#21808D] truncate">
+                      📍 {destination.address}
+                    </p>
+                    {routeInfo && (
+                      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Route className="h-3 w-3" />
+                          {formatDistance(routeInfo.distance)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatDuration(routeInfo.duration)}
+                        </span>
+                        <span className="text-[#21808D]">
+                          🅿️ {destinationParkings.length} parkings nearby
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearDestination}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Radius Slider */}
-        {showRadiusSlider && isLocationGranted && (
+        {showRadiusSlider && isLocationGranted && !showDestinationMode && (
           <div className="mt-3 rounded-lg bg-muted/50 p-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm">Search radius</span>
@@ -333,10 +499,12 @@ export default function PlacesScreen({ onNavigate }: PlacesScreenProps) {
               </div>
             ) : (
               <NearbyPlacesMap
-                carRepairs={filteredCarRepairs}
+                carRepairs={showDestinationMode ? [] : filteredCarRepairs}
                 parkings={filteredParkings}
                 userLocation={userLocation}
-                isLoading={isLoadingPlaces}
+                destination={destination}
+                routePolyline={routeInfo?.encodedPolyline}
+                isLoading={isLoadingPlaces || isSearchingDestination}
                 error={null}
               />
             )}

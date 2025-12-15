@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Send, Mic, Camera, ArrowLeft, MicOff, X, ImageIcon } from "lucide-react"
+import { Send, Mic, Camera, ArrowLeft, MicOff, X, ImageIcon, ScanLine, Circle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { useVinOcr, formatVinMessage } from "@/hooks/useVinOcr"
+import { useTireAnalysis, formatTireAnalysisMessage } from "@/hooks/useTireAnalysis"
 
 interface Message {
   id: string
@@ -56,6 +58,11 @@ export default function ChatInterface({ onNavigate, onImageSelect }: ChatInterfa
   const [isRecording, setIsRecording] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [showImagePicker, setShowImagePicker] = useState(false)
+  const [isVinScanMode, setIsVinScanMode] = useState(false)
+  const [isTireScanMode, setIsTireScanMode] = useState(false)
+  
+  const { isLoading: isVinScanning, scanVin } = useVinOcr()
+  const { isLoading: isTireAnalyzing, analyzeTire } = useTireAnalysis()
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -65,7 +72,12 @@ export default function ChatInterface({ onNavigate, onImageSelect }: ChatInterfa
   const audioChunksRef = useRef<Blob[]>([])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  const suggestedQuestions = ["Engine maintenance tips", "Battery warning light", "Oil change frequency"]
+  const suggestedQuestions = [
+    "What does this warning light mean?",
+    "Analyze damage in my photo",
+    "Check my tire condition",
+    "When should I change oil?",
+  ]
 
   useEffect(() => {
     const scrollToBottom = () => {
@@ -376,14 +388,114 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
     event.target.value = ""
   }
 
-  const handleCameraChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       const reader = new FileReader()
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const imageData = reader.result as string
-        setSelectedImage(imageData)
-        // Image stays in chat, no navigation to Scan tab
+        
+        if (isVinScanMode) {
+          // VIN scanning mode - process the image for VIN
+          setIsVinScanMode(false)
+          setIsTyping(true)
+          
+          // Add user message showing they're scanning VIN
+          const scanMessage: Message = {
+            id: Date.now().toString(),
+            type: "user",
+            content: "📷 Scanning VIN code...",
+            timestamp: new Date(),
+            image: imageData,
+          }
+          setMessages(prev => [...prev, scanMessage])
+          
+          try {
+            const vinResult = await scanVin(imageData)
+            
+            if (vinResult) {
+              // VIN detected successfully
+              const vinMessage = formatVinMessage(vinResult)
+              const assistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                type: "assistant",
+                content: vinMessage + "\n\nI've detected your vehicle information. How can I help you with this car?",
+                timestamp: new Date(),
+              }
+              setMessages(prev => [...prev, assistantMessage])
+            } else {
+              // VIN not detected
+              const errorMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                type: "assistant",
+                content: "❌ **VIN not detected**\n\nI couldn't find a valid VIN code in the image. Please try:\n\n1. 📍 **Door jamb** - Open driver's door, check the sticker\n2. 🚗 **Windshield** - Look at the bottom-left corner from outside\n3. 📄 **Registration** - Check your vehicle registration document\n4. 💡 **Better lighting** - Ensure the VIN is clearly visible\n\nWould you like to try again?",
+                timestamp: new Date(),
+              }
+              setMessages(prev => [...prev, errorMessage])
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+            const errorMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              type: "assistant",
+              content: `❌ **VIN scan failed:** ${errorMsg}\n\nPlease try again with a clearer photo.`,
+              timestamp: new Date(),
+            }
+            setMessages(prev => [...prev, errorMessage])
+          } finally {
+            setIsTyping(false)
+          }
+        } else if (isTireScanMode) {
+          // Tire analysis mode
+          setIsTireScanMode(false)
+          setIsTyping(true)
+          
+          const scanMessage: Message = {
+            id: Date.now().toString(),
+            type: "user",
+            content: "🛞 Analyzing tire condition...",
+            timestamp: new Date(),
+            image: imageData,
+          }
+          setMessages(prev => [...prev, scanMessage])
+          
+          try {
+            const tireResult = await analyzeTire(imageData)
+            
+            if (tireResult) {
+              const tireMessage = formatTireAnalysisMessage(tireResult)
+              const assistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                type: "assistant",
+                content: tireMessage,
+                timestamp: new Date(),
+              }
+              setMessages(prev => [...prev, assistantMessage])
+            } else {
+              const errorMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                type: "assistant",
+                content: "❌ **Tire analysis failed**\n\nI couldn't analyze the tire in this image. Please try:\n\n1. 📸 **Tread photo** - Take a photo directly above the tire tread\n2. 💡 **Good lighting** - Ensure the tire is well-lit\n3. 🔍 **Close-up** - Get close enough to see the tread pattern clearly\n4. 🧹 **Clean tire** - Remove dirt or debris for better visibility\n\nWould you like to try again?",
+                timestamp: new Date(),
+              }
+              setMessages(prev => [...prev, errorMessage])
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+            const errorMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              type: "assistant",
+              content: `❌ **Tire analysis error:** ${errorMsg}\n\nPlease try again with a clearer photo.`,
+              timestamp: new Date(),
+            }
+            setMessages(prev => [...prev, errorMessage])
+          } finally {
+            setIsTyping(false)
+          }
+        } else {
+          // Normal image mode
+          setSelectedImage(imageData)
+        }
       }
       reader.readAsDataURL(file)
     }
@@ -440,7 +552,13 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      p: ({ children }) => <p className="mb-2.5 last:mb-0 whitespace-pre-wrap break-words">{children}</p>,
+                      p: ({ children }) => {
+                        const text = String(children);
+                        if (text.startsWith('📚')) {
+                          return <p className="mb-2 mt-4 pt-3 border-t border-border/50 text-muted-foreground text-xs whitespace-pre-wrap break-words">{children}</p>;
+                        }
+                        return <p className="mb-2.5 last:mb-0 whitespace-pre-wrap break-words">{children}</p>;
+                      },
                       ul: ({ children }) => <ul className="list-disc list-outside mb-3 space-y-1.5 ml-4 pl-1">{children}</ul>,
                       ol: ({ children }) => <ol className="list-decimal list-outside mb-3 space-y-1.5 ml-4 pl-1">{children}</ol>,
                       li: ({ children }) => <li className="leading-relaxed pl-1">{children}</li>,
@@ -458,6 +576,16 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
                         )
                       },
                       blockquote: ({ children }) => <blockquote className="border-l-2 border-muted-foreground/30 pl-3 ml-2 italic my-2">{children}</blockquote>,
+                      a: ({ href, children }) => (
+                        <a 
+                          href={href} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                        >
+                          {children}
+                        </a>
+                      ),
                     }}
                   >
                     {message.content}
@@ -573,6 +701,51 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
               <div className="flex flex-col items-start">
                 <span className="font-semibold">Choose from Gallery</span>
                 <span className="text-xs text-muted-foreground">Select an existing photo from your device</span>
+              </div>
+            </Button>
+            
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Quick Analysis Tools</span>
+              </div>
+            </div>
+            
+            <Button
+              onClick={() => {
+                setIsVinScanMode(true);
+                setShowImagePicker(false);
+                setTimeout(() => cameraInputRef.current?.click(), 100);
+              }}
+              className="w-full h-14 flex items-center justify-start gap-3 text-left border-2 border-dashed border-emerald-500/50 hover:border-emerald-500 hover:bg-emerald-500/5"
+              variant="outline"
+            >
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10">
+                <ScanLine className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">Scan VIN Code</span>
+                <span className="text-xs text-muted-foreground">Take a photo of VIN sticker to auto-detect vehicle</span>
+              </div>
+            </Button>
+            
+            <Button
+              onClick={() => {
+                setIsTireScanMode(true);
+                setShowImagePicker(false);
+                setTimeout(() => cameraInputRef.current?.click(), 100);
+              }}
+              className="w-full h-14 flex items-center justify-start gap-3 text-left border-2 border-dashed border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/5"
+              variant="outline"
+            >
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-500/10">
+                <Circle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-amber-700 dark:text-amber-400">Analyze Tire Wear</span>
+                <span className="text-xs text-muted-foreground">Check tread depth, wear pattern & safety score</span>
               </div>
             </Button>
           </div>

@@ -86,6 +86,7 @@ function transformToParking(
     lat,
     lng,
     mapsUri: place.googleMapsUri ?? '',
+    priceLevel: place.priceLevel ?? null,
     distance: calculateDistance(userLat, userLng, lat, lng),
   };
 }
