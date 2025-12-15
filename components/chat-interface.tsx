@@ -317,46 +317,41 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
         
         recognition.continuous = true
         recognition.interimResults = true
-        recognition.lang = navigator.language || 'en-US' // Auto-detect user's language
+        recognition.lang = navigator.language || 'en-US'
         
-        let finalTranscript = ''
+        let fullTranscript = ''
         
         recognition.onresult = (event) => {
-          let interimTranscript = ''
+          let currentTranscript = ''
           
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript
-            if (event.results[i].isFinal) {
-              finalTranscript += transcript + ' '
-            } else {
-              interimTranscript += transcript
-            }
+          for (let i = 0; i < event.results.length; i++) {
+            currentTranscript += event.results[i][0].transcript
           }
           
-          // Update input with current transcription
+          fullTranscript = currentTranscript
+          
           setInput((prev) => {
-            const base = prev.replace(/ \[Listening\.\.\.\].*$/, '').replace(/ \[🎤\].*$/, '')
-            const displayText = finalTranscript + interimTranscript
-            return base + (displayText ? ` ${displayText.trim()}` : ' [🎤]')
+            const base = prev.replace(/ \[🎤.*$/, '')
+            return base + ` [🎤 ${currentTranscript}]`
           })
         }
         
         recognition.onerror = (event) => {
           console.error('Web Speech API error:', event.error)
-          // If Web Speech fails, fall back to Whisper
+          speechRecognitionRef.current = null
+          setIsRecording(false)
+          
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             startRecordingWithWhisper()
           } else {
-            setInput((prev) => prev.replace(/ \[🎤\].*$/, '') + ' [Voice recognition failed]')
-            setIsRecording(false)
+            setInput((prev) => prev.replace(/ \[🎤.*\]$/, ''))
           }
         }
         
         recognition.onend = () => {
-          // Clean up the input display
           setInput((prev) => {
-            const cleaned = prev.replace(/ \[🎤\].*$/, '').replace(/ \[Listening\.\.\.\].*$/, '')
-            return cleaned.trim()
+            const base = prev.replace(/ \[🎤.*\]$/, '')
+            return fullTranscript ? (base + ' ' + fullTranscript).trim() : base.trim()
           })
           setIsRecording(false)
           speechRecognitionRef.current = null
