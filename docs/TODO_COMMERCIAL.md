@@ -108,18 +108,6 @@ Infrastructure                  [████░░░░░░] 40%
   - Календарь обслуживания
   - **Effort:** 8h | **Priority:** P1
 
-### Block 1: Vision (расширение)
-
-- [ ] **VIS-001** Видео-анализ
-  - Client-side frame extraction
-  - Покадровый анализ
-  - Timeline результатов
-  - **Effort:** 16h | **Priority:** P1
-
-- [ ] **VIS-002** Аудио-анализ звуков двигателя
-  - Whisper transcription
-  - Классификация звуков
-  - **Effort:** 12h | **Priority:** P1
 
 ---
 
