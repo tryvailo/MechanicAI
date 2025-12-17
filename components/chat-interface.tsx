@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { ExternalLink, BookOpen, PlayCircle, ShoppingCart } from "lucide-react"
+import { VideoLink, isEmbeddableVideo } from "@/components/video-embed"
 import { useVinOcr, formatVinMessage } from "@/hooks/useVinOcr"
 import { useTireAnalysis, formatTireAnalysisMessage } from "@/hooks/useTireAnalysis"
 
@@ -613,9 +615,9 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
                       p: ({ children }) => {
                         const text = String(children);
                         if (text.startsWith('📚')) {
-                          return <p className="mb-2 mt-4 pt-3 border-t border-border/50 text-muted-foreground text-xs whitespace-pre-wrap break-words">{children}</p>;
+                          return <div className="mb-2 mt-4 pt-3 border-t border-border/50 text-muted-foreground text-xs whitespace-pre-wrap break-words">{children}</div>;
                         }
-                        return <p className="mb-2.5 last:mb-0 whitespace-pre-wrap break-words">{children}</p>;
+                        return <div className="mb-2.5 last:mb-0 whitespace-pre-wrap break-words">{children}</div>;
                       },
                       ul: ({ children }) => <ul className="list-disc list-outside mb-3 space-y-1.5 ml-4 pl-1">{children}</ul>,
                       ol: ({ children }) => <ol className="list-decimal list-outside mb-3 space-y-1.5 ml-4 pl-1">{children}</ol>,
@@ -634,16 +636,45 @@ IMPORTANT: You can see and understand what's in the photo through this analysis.
                         )
                       },
                       blockquote: ({ children }) => <blockquote className="border-l-2 border-muted-foreground/30 pl-3 ml-2 italic my-2">{children}</blockquote>,
-                      a: ({ href, children }) => (
-                        <a 
-                          href={href} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
-                        >
-                          {children}
-                        </a>
-                      ),
+                      a: ({ href, children }) => {
+                                        const text = String(children).toLowerCase();
+                                        const isAutodoc = href?.includes('autodoc');
+                                        const isClubAutodoc = href?.includes('club.autodoc');
+                                        const isYouTube = href?.includes('youtube.com') || href?.includes('youtu.be');
+                                        const isVideo = text.includes('video') || text.includes('tutorial') || isClubAutodoc || isYouTube;
+                                        const isShop = text.includes('search') || text.includes('find') || text.includes('buy') || text.includes('shop');
+                                        
+                                        // If it's an embeddable video, use VideoLink component
+                                        if (href && isEmbeddableVideo(href)) {
+                                          return <VideoLink url={href}>{children}</VideoLink>;
+                                        }
+                                        
+                                        let Icon = ExternalLink;
+                                        let iconColor = 'text-primary';
+                                        
+                                        if (isVideo) {
+                                          Icon = PlayCircle;
+                                          iconColor = 'text-red-500';
+                                        } else if (isShop && isAutodoc) {
+                                          Icon = ShoppingCart;
+                                          iconColor = 'text-green-600';
+                                        } else if (isAutodoc) {
+                                          Icon = BookOpen;
+                                          iconColor = 'text-blue-500';
+                                        }
+                                        
+                                        return (
+                                          <a 
+                                            href={href} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                                          >
+                                            <Icon className={`h-3.5 w-3.5 ${iconColor} flex-shrink-0`} />
+                                            {children}
+                                          </a>
+                                        );
+                                      },
                     }}
                   >
                     {message.content}
