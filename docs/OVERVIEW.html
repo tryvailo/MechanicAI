@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MechanicAI — Обзор продукта</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117; 
+            color: #e6edf3;
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        h1 { 
+            text-align: center; 
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #8b949e;
+            font-size: 1.1rem;
+            margin-bottom: 50px;
+        }
+        
+        h2 {
+            color: #58a6ff;
+            font-size: 1.5rem;
+            margin: 50px 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #30363d;
+        }
+        h3 {
+            color: #7ee787;
+            font-size: 1.1rem;
+            margin: 30px 0 15px;
+        }
+        
+        .section {
+            background: #161b22;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid #30363d;
+        }
+        
+        .mermaid { 
+            display: flex; 
+            justify-content: center;
+            background: #0d1117;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #30363d;
+        }
+        th { 
+            color: #58a6ff; 
+            font-weight: 600;
+            background: #0d1117;
+        }
+        
+        .tech { color: #7ee787; }
+        .todo { color: #f0883e; }
+        
+        .api-block {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 10px 0;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9rem;
+        }
+        .api-block .endpoint {
+            color: #7ee787;
+            font-weight: bold;
+        }
+        .api-block .label {
+            color: #8b949e;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .card {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .card h4 {
+            color: #58a6ff;
+            margin-bottom: 10px;
+        }
+        .card ul {
+            list-style: none;
+            color: #8b949e;
+        }
+        .card li {
+            padding: 4px 0;
+        }
+        .card li::before {
+            content: "→ ";
+            color: #7ee787;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+        .badge.low { background: #238636; color: #fff; }
+        .badge.medium { background: #9e6a03; color: #fff; }
+        
+        .toc {
+            background: #161b22;
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            border: 1px solid #30363d;
+        }
+        .toc h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .toc ul {
+            list-style: none;
+        }
+        .toc li {
+            padding: 5px 0;
+        }
+        .toc a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 MechanicAI</h1>
+        <p class="subtitle">AI-приложение для диагностики автомобилей: фото проблемы → AI анализ → рекомендации → поиск сервисов</p>
+
+        <!-- TOC -->
+        <div class="toc">
+            <h3>Содержание</h3>
+            <ul>
+                <li><a href="#current">1. Текущая реализация</a></li>
+                <li><a href="#production">2. Что нужно для продакшена</a></li>
+                <li><a href="#resources">3. Необходимые ресурсы</a></li>
+            </ul>
+        </div>
+
+        <!-- SECTION 1: Current Implementation -->
+        <h2 id="current">1. Текущая реализация</h2>
+        
+        <div class="section">
+            <h3>Высокоуровневая архитектура</h3>
+            <div class="mermaid">
+flowchart TB
+    subgraph USER["👤 Пользователь"]
+        Photo["📷 Фото"]
+        Video["🎥 Realtime видео"]
+        Voice["🎤 Голос"]
+        Location["📍 Геолокация"]
+    end
+    
+    subgraph APP["📱 Next.js PWA"]
+        UI["Камера / Чат / Карта / История"]
+    end
+    
+    subgraph BACKEND["⚙️ Vercel Serverless API"]
+        PhotoAPI["/api/analyze-photo"]
+        ChatAPI["/api/chat"]
+        TranscribeAPI["/api/transcribe-gemini"]
+        PlacesAPI["/api/nearby-places"]
+    end
+    
+    subgraph AI["🤖 AI Сервисы"]
+        OpenAI["OpenAI GPT-4o Vision"]
+        Gemini["Gemini 2.0 Flash\nRealtime Video + Audio"]
+    end
+    
+    subgraph MAPS["🗺️ Google APIs"]
+        Places["Places API"]
+        Maps["Maps JS API"]
+    end
+    
+    subgraph PARTS["🔩 Запчасти"]
+        PartsDB["База запчастей"]
+        AutoDoc["AutoDoc API"]
+        Compatibility["Проверка совместимости"]
+    end
+    
+    Photo --> PhotoAPI --> OpenAI
+    Video -.->|WebSocket| Gemini
+    Voice --> TranscribeAPI --> Gemini
+    ChatAPI --> OpenAI
+    Location --> PlacesAPI --> Places
+    APP --> Maps
+    
+    OpenAI -.->|TODO| PartsDB
+    PartsDB -.-> AutoDoc
+    AutoDoc -.-> Compatibility
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Основные блоки</h3>
+            <table>
+                <tr>
+                    <th>Блок</th>
+                    <th>Технология</th>
+                    <th>Функция</th>
+                </tr>
+                <tr>
+                    <td>Frontend</td>
+                    <td class="tech">Next.js 16 + React 19</td>
+                    <td>PWA: камера, чат, карта, история</td>
+                </tr>
+                <tr>
+                    <td>Photo Analysis</td>
+                    <td class="tech">OpenAI GPT-4o Vision</td>
+                    <td>Анализ фото проблем авто</td>
+                </tr>
+                <tr>
+                    <td>Realtime Video</td>
+                    <td class="tech">Gemini 2.0 Flash (WebSocket)</td>
+                    <td>Live видео-диагностика с голосом</td>
+                </tr>
+                <tr>
+                    <td>Voice Input</td>
+                    <td class="tech">Gemini + Whisper</td>
+                    <td>Транскрипция голосовых сообщений</td>
+                </tr>
+                <tr>
+                    <td>Maps & Places</td>
+                    <td class="tech">Google Maps + Places API</td>
+                    <td>Поиск автосервисов рядом</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h3>Пользовательский флоу</h3>
+            <div class="mermaid">
+flowchart LR
+    A["📷 Фото проблемы"] --> B["🔍 AI анализ"]
+    B --> C["📋 Диагноз"]
+    C --> D["💬 Уточнение в чате"]
+    C --> E["📍 Найти сервис"]
+    C -.-> F["🔩 Подбор запчастей"]
+    F -.-> G["✅ Проверка совместимости"]
+            </div>
+            <p style="color: #8b949e; font-size: 0.9rem; margin-top: 10px;">* Пунктирные линии — планируемые функции</p>
+        </div>
+
+        <div class="section">
+            <h3>Планируемые функции (TODO)</h3>
+            <table>
+                <tr>
+                    <th>Функция</th>
+                    <th>Интеграция</th>
+                    <th>Статус</th>
+                </tr>
+                <tr>
+                    <td>Поиск запчастей</td>
+                    <td>AutoDoc API</td>
+                    <td class="todo">🔜 Планируется</td>
+                </tr>
+                <tr>
+                    <td>Проверка совместимости</td>
+                    <td>AutoDoc API</td>
+                    <td class="todo">🔜 Планируется</td>
+                </tr>
+                <tr>
+                    <td>Рекомендации запчастей</td>
+                    <td>AI + База данных</td>
+                    <td class="todo">🔜 Планируется</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- SECTION 2: Production Requirements -->
+        <h2 id="production">2. Что нужно для продакшена</h2>
+
+        <div class="section">
+            <h3>2.1 Миграция Vercel → Google Cloud</h3>
+            <div class="mermaid">
+flowchart TB
+    subgraph GCP["☁️ Google Cloud Platform"]
+        CloudRun["Cloud Run\n(API сервис)"]
+        Secrets["Secret Manager\n(ключи API)"]
+        Build["Cloud Build\n(CI/CD)"]
+        Auth["Firebase Auth\n(авторизация)"]
+        Logs["Cloud Logging\n(мониторинг)"]
+    end
+    
+    Git["GitHub"] --> Build
+    Build --> CloudRun
+    Secrets --> CloudRun
+    Auth --> CloudRun
+    CloudRun --> Logs
+            </div>
+            
+            <h4 style="color: #e6edf3; margin: 20px 0 15px;">Маппинг компонентов</h4>
+            <table>
+                <tr>
+                    <th>Vercel (сейчас)</th>
+                    <th>Google Cloud (цель)</th>
+                </tr>
+                <tr>
+                    <td>Vercel Functions</td>
+                    <td class="tech">Cloud Run</td>
+                </tr>
+                <tr>
+                    <td>Vercel Env Variables</td>
+                    <td class="tech">Secret Manager</td>
+                </tr>
+                <tr>
+                    <td>Vercel Git Deploy</td>
+                    <td class="tech">Cloud Build</td>
+                </tr>
+                <tr>
+                    <td>—</td>
+                    <td class="tech">Firebase Auth (новое)</td>
+                </tr>
+            </table>
+
+            <h4 style="color: #e6edf3; margin: 20px 0 15px;">Задачи миграции</h4>
+            <table>
+                <tr>
+                    <th>#</th>
+                    <th>Задача</th>
+                    <th>Сложность</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>Создать Dockerfile</td>
+                    <td><span class="badge low">Низкая</span></td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Настроить Cloud Run</td>
+                    <td><span class="badge low">Низкая</span></td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Перенести secrets в Secret Manager</td>
+                    <td><span class="badge low">Низкая</span></td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>Настроить Cloud Build (CI/CD)</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Подключить домен + SSL</td>
+                    <td><span class="badge low">Низкая</span></td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>Тестирование</td>
+                    <td><span class="badge low">Низкая</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h3>2.2 Интеграция в мобильные приложения</h3>
+            <div class="mermaid">
+flowchart TB
+    subgraph MOBILE["📱 Мобильные приложения"]
+        iOS["iOS App\n(Swift)"]
+        Android["Android App\n(Kotlin)"]
+    end
+    
+    subgraph NATIVE["Нативные компоненты"]
+        Camera["Камера"]
+        HTTP["HTTP Client"]
+        WS["WebSocket"]
+    end
+    
+    subgraph API["☁️ Cloud Run API"]
+        Analyze["/api/analyze-photo"]
+        Chat["/api/chat"]
+        Places["/api/nearby-places"]
+        Transcribe["/api/transcribe-gemini"]
+    end
+    
+    iOS --> NATIVE
+    Android --> NATIVE
+    Camera -->|"base64"| Analyze
+    HTTP --> Chat
+    HTTP --> Places
+    WS -->|"Gemini Realtime"| Transcribe
+            </div>
+
+            <h4 style="color: #e6edf3; margin: 20px 0 15px;">API контракт</h4>
+            
+            <div class="api-block">
+                <div class="endpoint">POST /api/analyze-photo</div>
+                <div><span class="label">Request:</span> { image: "base64...", prompt?: "описание" }</div>
+                <div><span class="label">Response:</span> { diagnosis: [...], recommendations: [...] }</div>
+            </div>
+            
+            <div class="api-block">
+                <div class="endpoint">POST /api/chat</div>
+                <div><span class="label">Request:</span> { messages: [...], context?: {...} }</div>
+                <div><span class="label">Response:</span> SSE stream с текстом ответа</div>
+            </div>
+            
+            <div class="api-block">
+                <div class="endpoint">POST /api/nearby-places</div>
+                <div><span class="label">Request:</span> { lat: number, lng: number, radius?: number }</div>
+                <div><span class="label">Response:</span> { carRepairs: [...], parkings: [...] }</div>
+            </div>
+
+            <h4 style="color: #e6edf3; margin: 20px 0 15px;">Задачи интеграции</h4>
+            <table>
+                <tr>
+                    <th>#</th>
+                    <th>Задача</th>
+                    <th>Платформа</th>
+                    <th>Сложность</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>Адаптация API (CORS, auth)</td>
+                    <td>Backend</td>
+                    <td><span class="badge low">Низкая</span></td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Камера → base64 → API</td>
+                    <td>iOS</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Камера → base64 → API</td>
+                    <td>Android</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>UI отображения результатов</td>
+                    <td>iOS / Android</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Чат интерфейс (SSE)</td>
+                    <td>iOS / Android</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>WebSocket для Gemini Realtime</td>
+                    <td>iOS / Android</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- SECTION 3: Resources -->
+        <h2 id="resources">3. Необходимые ресурсы</h2>
+
+        <div class="section">
+            <div class="grid">
+                <div class="card">
+                    <h4>Backend / DevOps</h4>
+                    <ul>
+                        <li>Docker</li>
+                        <li>Google Cloud (Cloud Run)</li>
+                        <li>Node.js / Next.js</li>
+                        <li>CI/CD настройка</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>iOS разработчик</h4>
+                    <ul>
+                        <li>Swift / SwiftUI</li>
+                        <li>URLSession (HTTP)</li>
+                        <li>AVFoundation (камера)</li>
+                        <li>WebSocket клиент</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Android разработчик</h4>
+                    <ul>
+                        <li>Kotlin / Jetpack Compose</li>
+                        <li>Retrofit (HTTP)</li>
+                        <li>CameraX (камера)</li>
+                        <li>OkHttp WebSocket</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Риски и митигация</h3>
+            <table>
+                <tr>
+                    <th>Риск</th>
+                    <th>Вероятность</th>
+                    <th>Митигация</th>
+                </tr>
+                <tr>
+                    <td>Задержка мобильной разработки</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                    <td>Параллельная работа iOS / Android</td>
+                </tr>
+                <tr>
+                    <td>Проблемы с WebSocket на мобильных</td>
+                    <td><span class="badge medium">Средняя</span></td>
+                    <td>MVP без realtime, добавить позже</td>
+                </tr>
+                <tr>
+                    <td>Лимиты Google Cloud</td>
+                    <td><span class="badge low">Низкая</span></td>
+                    <td>Мониторинг + алерты</td>
+                </tr>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#238636',
+                primaryTextColor: '#e6edf3',
+                primaryBorderColor: '#30363d',
+                lineColor: '#8b949e',
+                secondaryColor: '#161b22',
+                tertiaryColor: '#0d1117'
+            }
+        });
+    </script>
+</body>
+</html>

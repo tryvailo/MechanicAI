@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MechanicAI — Архитектура</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117; 
+            color: #e6edf3;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { 
+            text-align: center; 
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: #8b949e;
+            margin-bottom: 40px;
+        }
+        .diagram-section {
+            background: #161b22;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid #30363d;
+        }
+        .diagram-section h2 {
+            color: #58a6ff;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+        .mermaid { 
+            display: flex; 
+            justify-content: center;
+            background: #0d1117;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #30363d;
+        }
+        th { 
+            color: #58a6ff; 
+            font-weight: 600;
+        }
+        td:first-child { font-weight: 500; }
+        .tech { color: #7ee787; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 MechanicAI</h1>
+        <p class="subtitle">AI-приложение для диагностики автомобилей</p>
+
+        <!-- Главная диаграмма -->
+        <div class="diagram-section">
+            <h2>Общая архитектура</h2>
+            <div class="mermaid">
+flowchart TB
+    subgraph USER["👤 Пользователь"]
+        Photo["📷 Фото"]
+        Video["🎥 Realtime видео"]
+        Voice["🎤 Голос"]
+        Location["📍 Геолокация"]
+    end
+    
+    subgraph APP["📱 Next.js PWA"]
+        UI["Камера / Чат / Карта / История"]
+    end
+    
+    subgraph BACKEND["⚙️ Vercel Serverless API"]
+        PhotoAPI["/api/analyze-photo"]
+        ChatAPI["/api/chat"]
+        TranscribeAPI["/api/transcribe-gemini"]
+        PlacesAPI["/api/nearby-places"]
+    end
+    
+    subgraph AI["🤖 AI Сервисы"]
+        OpenAI["OpenAI GPT-4o Vision"]
+        Gemini["Gemini 2.0 Flash\nRealtime Video + Audio"]
+    end
+    
+    subgraph MAPS["🗺️ Google APIs"]
+        Places["Places API"]
+        Maps["Maps JS API"]
+    end
+    
+    subgraph PARTS["🔩 Запчасти (TODO)"]
+        PartsDB["База запчастей"]
+        AutoDoc["AutoDoc API"]
+        Compatibility["Проверка совместимости"]
+    end
+    
+    Photo --> PhotoAPI --> OpenAI
+    Video -.->|WebSocket| Gemini
+    Voice --> TranscribeAPI --> Gemini
+    ChatAPI --> OpenAI
+    Location --> PlacesAPI --> Places
+    APP --> Maps
+    
+    OpenAI -.->|TODO| PartsDB
+    PartsDB -.-> AutoDoc
+    AutoDoc -.-> Compatibility
+            </div>
+        </div>
+
+        <!-- User Flow -->
+        <div class="diagram-section">
+            <h2>Основной пользовательский флоу</h2>
+            <div class="mermaid">
+flowchart LR
+    A["📷 Фото проблемы"] --> B["🔍 AI анализ"]
+    B --> C["📋 Диагноз"]
+    C --> D["💬 Уточнение в чате"]
+    C --> E["📍 Найти сервис"]
+    C -.-> F["🔩 Подбор запчастей"]
+    F -.-> G["✅ Проверка совместимости"]
+    D --> E
+            </div>
+        </div>
+
+        <!-- Realtime Video Flow -->
+        <div class="diagram-section">
+            <h2>Realtime Video диагностика</h2>
+            <div class="mermaid">
+sequenceDiagram
+    participant U as Пользователь
+    participant App as Приложение
+    participant WS as WebSocket
+    participant G as Gemini 2.0 Flash
+
+    U->>App: Включает камеру
+    App->>WS: Открывает соединение
+    
+    loop Каждые 1-2 секунды
+        App->>App: Захват кадра
+        App->>WS: Отправка frame (base64)
+        WS->>G: Анализ изображения
+        G-->>WS: Голосовой ответ
+        WS-->>App: Audio stream
+        App-->>U: Воспроизведение
+    end
+            </div>
+        </div>
+
+        <!-- Блоки -->
+        <div class="diagram-section">
+            <h2>5 основных блоков</h2>
+            <table>
+                <tr>
+                    <th>Блок</th>
+                    <th>Технология</th>
+                    <th>Функция</th>
+                </tr>
+                <tr>
+                    <td>Frontend</td>
+                    <td class="tech">Next.js 16 + React 19</td>
+                    <td>PWA: камера, чат, карта, история</td>
+                </tr>
+                <tr>
+                    <td>Photo Analysis</td>
+                    <td class="tech">OpenAI GPT-4o Vision</td>
+                    <td>Анализ фото проблем авто</td>
+                </tr>
+                <tr>
+                    <td>Realtime Video</td>
+                    <td class="tech">Gemini 2.0 Flash WebSocket</td>
+                    <td>Live видео-диагностика с голосом</td>
+                </tr>
+                <tr>
+                    <td>Voice Input</td>
+                    <td class="tech">Gemini + Whisper (fallback)</td>
+                    <td>Транскрипция голосовых сообщений</td>
+                </tr>
+                <tr>
+                    <td>Maps & Places</td>
+                    <td class="tech">Google Maps + Places API</td>
+                    <td>Поиск автосервисов рядом</td>
+                </tr>
+                <tr style="opacity: 0.6;">
+                    <td>🔜 Parts Database</td>
+                    <td class="tech">AutoDoc API</td>
+                    <td>Поиск запчастей + совместимость</td>
+                </tr>
+            </table>
+            <p style="color: #8b949e; margin-top: 16px; font-size: 0.9rem;">
+                * Пунктирные линии и затемнённые строки — планируемые функции (TODO)
+            </p>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#238636',
+                primaryTextColor: '#e6edf3',
+                primaryBorderColor: '#30363d',
+                lineColor: '#8b949e',
+                secondaryColor: '#161b22',
+                tertiaryColor: '#0d1117'
+            }
+        });
+    </script>
+</body>
+</html>
