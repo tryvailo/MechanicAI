@@ -49,10 +49,10 @@ export const RATE_LIMITS: Record<UserTier, TierLimits> = {
 };
 
 export const ANONYMOUS_LIMITS: TierLimits = {
-  'chat': { requests: 5, windowMs: 24 * 60 * 60 * 1000 },
-  'image-scan': { requests: 2, windowMs: 24 * 60 * 60 * 1000 },
-  'video-scan': { requests: 0, windowMs: 24 * 60 * 60 * 1000 },
-  'audio-scan': { requests: 0, windowMs: 24 * 60 * 60 * 1000 },
+  'chat': { requests: 50, windowMs: 24 * 60 * 60 * 1000 },
+  'image-scan': { requests: 20, windowMs: 24 * 60 * 60 * 1000 },
+  'video-scan': { requests: 5, windowMs: 24 * 60 * 60 * 1000 },
+  'audio-scan': { requests: 20, windowMs: 24 * 60 * 60 * 1000 },
   'parts-search': { requests: 3, windowMs: 24 * 60 * 60 * 1000 },
   'parking-search': { requests: 10, windowMs: 24 * 60 * 60 * 1000 },
   'vin-ocr': { requests: 1, windowMs: 24 * 60 * 60 * 1000 },
