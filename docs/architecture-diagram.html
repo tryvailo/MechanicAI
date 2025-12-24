@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MechanicAI — System Architecture</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #141414;
+      --bg-card: #1a1a1a;
+      --border: #2a2a2a;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0a0;
+      --accent: #f97316;
+      --accent-dim: #c2410c;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--accent), #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    header p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    .section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .section h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .section h2::before {
+      content: '';
+      width: 4px;
+      height: 24px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    
+    .mermaid {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+    
+    .card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .card ul {
+      list-style: none;
+    }
+    
+    .card li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .card li:last-child {
+      border-bottom: none;
+    }
+    
+    .card li code {
+      background: var(--bg-card);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.85rem;
+      color: var(--accent);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    
+    th, td {
+      text-align: left;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    th {
+      background: var(--bg-secondary);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    td {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    td:first-child {
+      font-family: 'SF Mono', Monaco, monospace;
+      color: var(--text-primary);
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .badge-gemini {
+      background: rgba(66, 133, 244, 0.2);
+      color: #4285f4;
+    }
+    
+    .badge-openai {
+      background: rgba(16, 163, 127, 0.2);
+      color: #10a37f;
+    }
+    
+    .badge-google {
+      background: rgba(234, 67, 53, 0.2);
+      color: #ea4335;
+    }
+    
+    .tech-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    
+    .tech-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .tech-item span {
+      color: var(--text-secondary);
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    
+    .stat {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+      
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      h1 {
+        font-size: 1.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔧 MechanicAI</h1>
+      <p>AI-Powered Car Diagnostics System Architecture</p>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value">9</div>
+        <div class="stat-label">API Endpoints</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">12</div>
+        <div class="stat-label">Components</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">3</div>
+        <div class="stat-label">AI Services</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">5</div>
+        <div class="stat-label">App Screens</div>
+      </div>
+    </div>
+
+    <!-- High-Level Architecture -->
+    <section class="section">
+      <h2>High-Level Architecture</h2>
+      <div class="mermaid">
+flowchart TB
+    subgraph Client["📱 Client (Next.js PWA)"]
+        Splash[Splash Screen]
+        Camera[Camera Scanner]
+        Chat[Chat Interface]
+        Results[Analysis Results]
+        History[History Screen]
+        Places[Places Screen]
+        TabNav[Tab Navigation]
+    end
+
+    subgraph Middleware["🛡️ Middleware Layer"]
+        RateLimit[Rate Limiter]
+        Fingerprint[Fingerprint Extractor]
+        Abuse[Abuse Detector]
+    end
+
+    subgraph API["⚡ API Layer (Next.js Routes)"]
+        ChatAPI["/api/chat"]
+        PhotoAPI["/api/analyze-photo"]
+        TireAPI["/api/tire-analysis"]
+        VinAPI["/api/vin-ocr"]
+        TranscribeAPI["/api/transcribe-gemini"]
+        PlacesAPI["/api/nearby-places"]
+        DirectionsAPI["/api/directions"]
+        MaintenanceAPI["/api/maintenance-schedule"]
+    end
+
+    subgraph External["☁️ External Services"]
+        Gemini["Google Gemini<br/>Vision + LLM + Audio"]
+        Whisper["OpenAI Whisper<br/>(Fallback)"]
+        GoogleMaps["Google Maps<br/>Places + Directions"]
+    end
+
+    Client --> Middleware
+    Middleware --> API
+    
+    ChatAPI --> Gemini
+    PhotoAPI --> Gemini
+    TireAPI --> Gemini
+    VinAPI --> Gemini
+    TranscribeAPI --> Gemini
+    TranscribeAPI -.->|fallback| Whisper
+    PlacesAPI --> GoogleMaps
+    DirectionsAPI --> GoogleMaps
+    MaintenanceAPI --> Gemini
+
+    style Client fill:#1a1a2e,stroke:#f97316,color:#fff
+    style Middleware fill:#16213e,stroke:#f97316,color:#fff
+    style API fill:#0f3460,stroke:#f97316,color:#fff
+    style External fill:#1a1a2e,stroke:#4285f4,color:#fff
+      </div>
+    </section>
+
+    <!-- Data Flows -->
+    <section class="section">
+      <h2>Data Flows</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>📷 Photo Analysis Flow</h3>
+          <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant C as Camera
+    participant API as /api/analyze-photo
+    participant G as Gemini Vision
+
+    U->>C: Capture Photo
+    C->>API: POST image (base64)
+    API->>G: Analyze with Vision AI
+    G-->>API: Diagnostic result
+    API-->>C: JSON response
+    C->>U: Display analysis
+          </div>
+        </div>
+        <div class="card">
+          <h3>🎤 Voice Chat Flow</h3>
+          <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant CI as Chat Interface
+    participant T as /api/transcribe
+    participant CH as /api/chat
+    participant G as Gemini
+
+    U->>CI: Record voice
+    CI->>T: POST audio blob
+    T->>G: Transcribe audio
+    G-->>T: Text
+    T-->>CI: Transcription
+    CI->>CH: POST message
+    CH->>G: Stream response
+    G-->>CH: AI reply (SSE)
+    CH-->>CI: Streamed text
+    CI->>U: Display response
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Component Architecture -->
+    <section class="section">
+      <h2>Component Architecture</h2>
+      <div class="mermaid">
+flowchart LR
+    subgraph Pages["Page Components"]
+        SP[splash-screen]
+        RP[results-page]
+    end
+
+    subgraph Features["Feature Components"]
+        CS[camera-scanner]
+        CI[chat-interface]
+        AR[analysis-results]
+        HS[history-screen]
+        PS[places-screen]
+        NPM[nearby-places-map]
+        MS[maintenance-schedule]
+    end
+
+    subgraph UI["UI Components"]
+        TN[tab-navigation]
+        ED[error-display]
+        VE[video-embed]
+        SHAD[shadcn/ui]
+    end
+
+    SP --> RP
+    RP --> CS
+    RP --> CI
+    RP --> AR
+    RP --> HS
+    RP --> PS
+    RP --> TN
+
+    PS --> NPM
+    CI --> MS
+    
+    CS --> SHAD
+    CI --> SHAD
+    AR --> SHAD
+    TN --> SHAD
+
+    style Pages fill:#1e3a5f,stroke:#f97316,color:#fff
+    style Features fill:#2d4a3e,stroke:#10a37f,color:#fff
+    style UI fill:#3d2d4a,stroke:#a855f7,color:#fff
+      </div>
+    </section>
+
+    <!-- Rate Limiting -->
+    <section class="section">
+      <h2>Rate Limiting System</h2>
+      <div class="mermaid">
+flowchart LR
+    subgraph Input
+        REQ[Incoming Request]
+    end
+
+    subgraph Processing
+        FP[Fingerprint<br/>Extraction]
+        AD[Abuse<br/>Detection]
+        RL[Rate<br/>Limiter]
+        ST[(In-Memory<br/>Store)]
+    end
+
+    subgraph Output
+        ALLOW[✅ Allow]
+        BLOCK[🚫 Block 429]
+    end
+
+    REQ --> FP
+    FP --> AD
+    AD --> RL
+    RL <--> ST
+    RL --> ALLOW
+    RL --> BLOCK
+
+    style Input fill:#1a1a2e,stroke:#f97316,color:#fff
+    style Processing fill:#16213e,stroke:#4285f4,color:#fff
+    style Output fill:#0f3460,stroke:#10a37f,color:#fff
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Endpoint Type</th>
+            <th>Daily Limit</th>
+            <th>Window</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Chat</td>
+            <td>50 requests</td>
+            <td>24 hours</td>
+          </tr>
+          <tr>
+            <td>Image Scan</td>
+            <td>20 requests</td>
+            <td>24 hours</td>
+          </tr>
+          <tr>
+            <td>Audio Scan</td>
+            <td>20 requests</td>
+            <td>24 hours</td>
+          </tr>
+          <tr>
+            <td>Video Scan</td>
+            <td>5 requests</td>
+            <td>24 hours</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- API Endpoints -->
+    <section class="section">
+      <h2>API Endpoints</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Endpoint</th>
+            <th>Method</th>
+            <th>Purpose</th>
+            <th>Service</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>/api/chat</td>
+            <td>POST</td>
+            <td>AI chat with streaming responses</td>
+            <td><span class="badge badge-gemini">Gemini</span></td>
+          </tr>
+          <tr>
+            <td>/api/analyze-photo</td>
+            <td>POST</td>
+            <td>Car damage/issue analysis</td>
+            <td><span class="badge badge-gemini">Gemini Vision</span></td>
+          </tr>
+          <tr>
+            <td>/api/tire-analysis</td>
+            <td>POST</td>
+            <td>Tire condition analysis</td>
+            <td><span class="badge badge-gemini">Gemini Vision</span></td>
+          </tr>
+          <tr>
+            <td>/api/vin-ocr</td>
+            <td>POST</td>
+            <td>VIN code extraction from image</td>
+            <td><span class="badge badge-gemini">Gemini Vision</span></td>
+          </tr>
+          <tr>
+            <td>/api/transcribe-gemini</td>
+            <td>POST</td>
+            <td>Voice transcription (primary)</td>
+            <td><span class="badge badge-gemini">Gemini</span></td>
+          </tr>
+          <tr>
+            <td>/api/transcribe</td>
+            <td>POST</td>
+            <td>Voice transcription (fallback)</td>
+            <td><span class="badge badge-openai">Whisper</span></td>
+          </tr>
+          <tr>
+            <td>/api/nearby-places</td>
+            <td>GET</td>
+            <td>Find nearby mechanics</td>
+            <td><span class="badge badge-google">Google Places</span></td>
+          </tr>
+          <tr>
+            <td>/api/directions</td>
+            <td>GET</td>
+            <td>Route to service location</td>
+            <td><span class="badge badge-google">Google Directions</span></td>
+          </tr>
+          <tr>
+            <td>/api/maintenance-schedule</td>
+            <td>POST</td>
+            <td>Generate maintenance plan</td>
+            <td><span class="badge badge-gemini">Gemini</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Technology Stack -->
+    <section class="section">
+      <h2>Technology Stack</h2>
+      <div class="tech-stack">
+        <div class="tech-item">⚛️ <strong>Next.js 14</strong> <span>App Router</span></div>
+        <div class="tech-item">📘 <strong>TypeScript</strong></div>
+        <div class="tech-item">🎨 <strong>Tailwind CSS</strong></div>
+        <div class="tech-item">🧩 <strong>Shadcn UI</strong> <span>+ Radix</span></div>
+        <div class="tech-item">🤖 <strong>Google Gemini</strong> <span>AI/Vision</span></div>
+        <div class="tech-item">🎙️ <strong>OpenAI Whisper</strong> <span>Audio</span></div>
+        <div class="tech-item">🗺️ <strong>Google Maps</strong> <span>Platform</span></div>
+        <div class="tech-item">▲ <strong>Vercel</strong> <span>Deployment</span></div>
+      </div>
+    </section>
+
+    <!-- File Structure -->
+    <section class="section">
+      <h2>Project Structure</h2>
+      <div class="mermaid">
+flowchart LR
+    subgraph Root["📁 camera-scanning-screen"]
+        App["📁 app"]
+        Comp["📁 components"]
+        Lib["📁 lib"]
+        Config["📁 config"]
+        Public["📁 public"]
+        Types["📁 types"]
+    end
+
+    subgraph AppDir["app/"]
+        API["📁 api/"]
+        Layout["layout.tsx"]
+        Page["page.tsx"]
+        CSS["globals.css"]
+    end
+
+    subgraph APIDir["api/"]
+        Chat2["chat/"]
+        Photo["analyze-photo/"]
+        Tire["tire-analysis/"]
+        VIN["vin-ocr/"]
+        Trans["transcribe/"]
+        TransG["transcribe-gemini/"]
+        Places2["nearby-places/"]
+        Dir["directions/"]
+    end
+
+    subgraph LibDir["lib/"]
+        RL["rate-limit/"]
+        Hooks["hooks/"]
+        Utils["utils/"]
+    end
+
+    App --> AppDir
+    API --> APIDir
+    Lib --> LibDir
+
+    style Root fill:#1a1a2e,stroke:#f97316,color:#fff
+    style AppDir fill:#16213e,stroke:#4285f4,color:#fff
+    style APIDir fill:#0f3460,stroke:#10a37f,color:#fff
+    style LibDir fill:#2d4a3e,stroke:#a855f7,color:#fff
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#f97316',
+        primaryTextColor: '#fff',
+        primaryBorderColor: '#f97316',
+        lineColor: '#4a5568',
+        secondaryColor: '#1a1a2e',
+        tertiaryColor: '#16213e',
+        background: '#0a0a0a',
+        mainBkg: '#1a1a2e',
+        nodeBorder: '#f97316',
+        clusterBkg: '#16213e',
+        clusterBorder: '#2a2a2a',
+        titleColor: '#fff',
+        edgeLabelBackground: '#1a1a2e',
+        actorTextColor: '#fff',
+        actorBkg: '#1a1a2e',
+        actorBorder: '#f97316',
+        signalColor: '#fff',
+        signalTextColor: '#fff',
+        sequenceNumberColor: '#fff'
+      },
+      flowchart: {
+        curve: 'basis',
+        padding: 20
+      },
+      sequence: {
+        actorMargin: 50,
+        boxMargin: 10,
+        boxTextMargin: 5,
+        noteMargin: 10,
+        messageMargin: 35
+      }
+    });
+  </script>
+</body>
+</html>
