@@ -1,0 +1,82 @@
+[tool.poetry]
+name = "dashboard-analyzer"
+version = "0.1.0"
+description = "European car dashboard error recognition using AI vision models"
+authors = ["MechanicAI Team"]
+readme = "README.md"
+license = "MIT"
+keywords = ["automotive", "dashboard", "diagnostics", "ai", "vision", "europe"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = "^2.5"
+pydantic-settings = "^2.1"
+pillow = "^10.1"
+openai = "^1.6"
+python-dotenv = "^1.0"
+tenacity = "^8.2"
+httpx = "^0.25"
+
+[tool.poetry.group.api]
+optional = true
+
+[tool.poetry.group.api.dependencies]
+fastapi = "^0.108"
+uvicorn = {extras = ["standard"], version = "^0.25"}
+python-multipart = "^0.0.6"
+slowapi = "^0.1.9"
+
+[tool.poetry.group.cli]
+optional = true
+
+[tool.poetry.group.cli.dependencies]
+typer = {extras = ["all"], version = "^0.9"}
+rich = "^13.7"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4"
+pytest-asyncio = "^0.21"
+pytest-cov = "^4.1"
+black = "^23.12"
+ruff = "^0.1"
+mypy = "^1.7"
+pre-commit = "^3.6"
+
+[tool.poetry.extras]
+api = ["fastapi", "uvicorn", "python-multipart", "slowapi"]
+cli = ["typer", "rich"]
+all = ["fastapi", "uvicorn", "python-multipart", "slowapi", "typer", "rich"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+asyncio_mode = "auto"
