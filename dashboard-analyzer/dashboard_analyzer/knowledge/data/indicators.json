@@ -1,0 +1,300 @@
+{
+  "oil_pressure": {
+    "id": "oil_pressure",
+    "symbol": "oil_can",
+    "color": "red",
+    "category": "critical",
+    "urgency": 5,
+    "appearance": "Oil can with drop, sometimes with wavy lines",
+    "brands": ["universal"],
+    "obd_codes": ["P0520", "P0521", "P0522", "P0523", "P0524"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": true
+    }
+  },
+  "engine_temperature": {
+    "id": "engine_temperature",
+    "symbol": "thermometer",
+    "color": "red",
+    "category": "critical",
+    "urgency": 5,
+    "appearance": "Thermometer with wavy lines below",
+    "brands": ["universal"],
+    "obd_codes": ["P0217", "P0218", "P0219"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": true
+    }
+  },
+  "brake_warning": {
+    "id": "brake_warning",
+    "symbol": "brake",
+    "color": "red",
+    "category": "critical",
+    "urgency": 5,
+    "appearance": "Circle with exclamation mark or BRAKE text",
+    "brands": ["universal"],
+    "obd_codes": ["C0035", "C0036", "C0040"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": true
+    }
+  },
+  "battery_charging": {
+    "id": "battery_charging",
+    "symbol": "battery",
+    "color": "red",
+    "category": "critical",
+    "urgency": 4,
+    "appearance": "Battery with + and - terminals",
+    "brands": ["universal"],
+    "obd_codes": ["P0560", "P0562", "P0563"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": true
+    }
+  },
+  "airbag_srs": {
+    "id": "airbag_srs",
+    "symbol": "airbag",
+    "color": "red",
+    "category": "critical",
+    "urgency": 3,
+    "appearance": "Person in seat with airbag circle in front",
+    "brands": ["universal"],
+    "obd_codes": ["B0012", "B0013", "B0015"],
+    "eu_compliance": {
+      "regulation": "ECE R94",
+      "mandatory": true
+    }
+  },
+  "power_steering": {
+    "id": "power_steering",
+    "symbol": "steering_wheel",
+    "color": "red",
+    "category": "critical",
+    "urgency": 3,
+    "appearance": "Steering wheel icon with exclamation mark",
+    "brands": ["universal"],
+    "obd_codes": ["C0460", "C0461", "C0475"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": false
+    }
+  },
+  "check_engine": {
+    "id": "check_engine",
+    "symbol": "engine",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 3,
+    "appearance": "Engine block outline, sometimes with CHECK text",
+    "brands": ["universal"],
+    "obd_codes": ["P0420", "P0430", "P0171", "P0174", "P0300"],
+    "eu_compliance": {
+      "regulation": "EU 2009/40/EC",
+      "mandatory": true
+    }
+  },
+  "abs_warning": {
+    "id": "abs_warning",
+    "symbol": "abs",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 3,
+    "appearance": "Letters ABS in circle",
+    "brands": ["universal"],
+    "obd_codes": ["C0035", "C0040", "C0045"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": true
+    }
+  },
+  "traction_control": {
+    "id": "traction_control",
+    "symbol": "car_skid",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 2,
+    "appearance": "Car with skid marks or wavy lines below",
+    "brands": ["universal"],
+    "obd_codes": ["C0710", "C0800", "C0900"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": false
+    }
+  },
+  "tire_pressure": {
+    "id": "tire_pressure",
+    "symbol": "tire_tpms",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 2,
+    "appearance": "Flat tire shape with exclamation mark",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ECE R64",
+      "mandatory": true
+    }
+  },
+  "low_fuel": {
+    "id": "low_fuel",
+    "symbol": "fuel_pump",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 2,
+    "appearance": "Fuel pump icon",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": false
+    }
+  },
+  "glow_plug": {
+    "id": "glow_plug",
+    "symbol": "coil",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 2,
+    "appearance": "Coiled wire or spring shape",
+    "brands": ["diesel_only"],
+    "obd_codes": ["P0380", "P0381", "P0382"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": false
+    }
+  },
+  "dpf_warning": {
+    "id": "dpf_warning",
+    "symbol": "dpf",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 2,
+    "appearance": "Box with dots inside or exhaust with particles",
+    "brands": ["diesel_only"],
+    "obd_codes": ["P2002", "P2003", "P242F"],
+    "eu_compliance": {
+      "regulation": "EU Euro 6",
+      "mandatory": true
+    }
+  },
+  "service_required": {
+    "id": "service_required",
+    "symbol": "wrench",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 1,
+    "appearance": "Wrench or spanner icon",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": false
+    }
+  },
+  "epc_warning": {
+    "id": "epc_warning",
+    "symbol": "epc",
+    "color": "yellow",
+    "category": "warning",
+    "urgency": 3,
+    "appearance": "EPC text or engine with wrench",
+    "brands": ["vw", "audi", "seat", "skoda"],
+    "obd_codes": ["P2100", "P2101", "P2102"],
+    "manufacturer_specific": {
+      "brands": ["VW", "Audi", "SEAT", "Skoda"],
+      "notes": "Electronic Power Control - throttle/engine management issue"
+    },
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": false
+    }
+  },
+  "turn_signal_left": {
+    "id": "turn_signal_left",
+    "symbol": "arrow_left",
+    "color": "green",
+    "category": "info",
+    "urgency": 1,
+    "appearance": "Left arrow, blinking",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ECE R48",
+      "mandatory": true
+    }
+  },
+  "turn_signal_right": {
+    "id": "turn_signal_right",
+    "symbol": "arrow_right",
+    "color": "green",
+    "category": "info",
+    "urgency": 1,
+    "appearance": "Right arrow, blinking",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ECE R48",
+      "mandatory": true
+    }
+  },
+  "high_beam": {
+    "id": "high_beam",
+    "symbol": "headlight_high",
+    "color": "blue",
+    "category": "info",
+    "urgency": 1,
+    "appearance": "Headlight with horizontal lines",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ECE R48",
+      "mandatory": true
+    }
+  },
+  "low_beam": {
+    "id": "low_beam",
+    "symbol": "headlight_low",
+    "color": "green",
+    "category": "info",
+    "urgency": 1,
+    "appearance": "Headlight with angled lines down",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ECE R48",
+      "mandatory": true
+    }
+  },
+  "fog_lights": {
+    "id": "fog_lights",
+    "symbol": "fog",
+    "color": "green",
+    "category": "info",
+    "urgency": 1,
+    "appearance": "Headlight with wavy line",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ECE R48",
+      "mandatory": false
+    }
+  },
+  "cruise_control": {
+    "id": "cruise_control",
+    "symbol": "cruise",
+    "color": "green",
+    "category": "info",
+    "urgency": 1,
+    "appearance": "Speedometer with arrow",
+    "brands": ["universal"],
+    "obd_codes": [],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": false
+    }
+  }
+}
