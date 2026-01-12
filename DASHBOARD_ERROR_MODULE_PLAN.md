@@ -1,14 +1,18 @@
-# План работ: Модуль распознавания ошибок приборной панели
+# План работ: Модуль распознавания ошибок приборной панели (Python)
 
 ## Дата создания: 2026-01-12
+## Последнее обновление: 2026-01-12 (адаптация под Python)
+
 **Целевой рынок:** Европа
-**Цель:** Создать независимый модуль для распознавания и обработки ошибок приборной панели автомобиля
+**Язык разработки:** Python 3.10+
+**Цель:** Создать независимый Python модуль для распознавания и обработки ошибок приборной панели автомобиля
+**MVP версия:** Только статичные фотографии (без real-time видео)
 
 ---
 
-## 📊 ТЕКУЩЕЕ СОСТОЯНИЕ СИСТЕМЫ
+## 📊 ТЕКУЩЕЕ СОСТОЯНИЕ СИСТЕМЫ (для портирования)
 
-### Архитектура распознавания
+### Архитектура распознавания (Next.js/TypeScript)
 Текущая система интегрирована в Next.js приложение MechanicAI и состоит из:
 
 1. **Backend API** (`/app/api/analyze-photo/route.ts`)
@@ -22,213 +26,280 @@
    - Специфика производителей (BMW, Mercedes, VW/Audi, Volvo)
    - Европейские стандарты диагностики
 
-3. **Real-time модуль** (`/hooks/useDashboardMechanic.ts`)
-   - WebSocket подключение к Gemini 2.0
-   - Live видеопоток анализ
-   - Аудио вход/выход для голосового взаимодействия
-
-4. **Frontend компоненты**
-   - Сканирование фото (`/app/scan/page.tsx`)
-   - Real-time режим (`/app/realtime/page.tsx`)
-   - Отображение результатов (`/components/error-display.tsx`)
-
-### Ключевые возможности
+### Возможности для портирования
 - ✅ Распознавание 30+ типов индикаторов приборной панели
 - ✅ Анализ повреждений кузова и шин
 - ✅ Мультиязычность (авто-определение)
-- ✅ Два режима работы (статичное фото / live видео)
-- ✅ Fallback между провайдерами AI
+- ✅ Fallback между AI провайдерами
 
-### Зависимости
-- **Frontend:** React 19, Next.js 16, TypeScript
-- **UI:** Radix UI, Tailwind CSS
-- **AI API:** OpenAI, Claude (Anthropic), Google Gemini
-- **Вспомогательные:** react-markdown, date-fns
+### Что НЕ портируем в v1.0
+- ❌ Real-time видеопоток анализ (WebSocket)
+- ❌ Аудио вход/выход (голосовое взаимодействие)
+- ❌ React компоненты (только примеры REST API интеграции)
+- ❌ Next.js специфичный код
 
 ---
 
-## 🎯 ЦЕЛИ ПРОЕКТА МОДУЛЯ
+## 🎯 ЦЕЛИ ПРОЕКТА МОДУЛЯ (Python MVP)
 
-### Функциональные требования
-1. **Автономность**
-   - Модуль не зависит от Next.js или React
-   - Работает в Node.js, браузере, React Native
-   - Минимум внешних зависимостей
+### Функциональные требования v1.0
+1. **Автономность и простота**
+   - Чистый Python модуль (без фреймворковых зависимостей)
+   - Работает на любом Python 3.10+ окружении
+   - Минимум внешних зависимостей (только AI SDK + Pillow)
+   - PyPI публикация для простой установки: `pip install dashboard-analyzer`
 
-2. **Европейский фокус**
+2. **Режимы работы (статичные фото)**
+   - **Загрузка фото**: пользователь загружает файл → анализ
+   - **Съёмка фото**: камера → захват кадра → анализ
+   - **Чат-интерфейс**: отправка фото в чат для диалогового анализа
+
+3. **Европейский фокус**
    - Приоритет европейским маркам (VW, BMW, Mercedes, Renault, Peugeot, Volvo, Fiat)
    - Поддержка европейских стандартов (EU регламенты, ECE правила)
    - Мультиязычность (EN, DE, FR, IT, ES, PL, NL, RU)
    - Интеграция с EU OBD-II стандартами
 
-3. **Производительность**
-   - Оптимизированные промпты для быстрого ответа
+4. **Производительность**
+   - Оптимизированные промпты для быстрого ответа (<3 сек)
    - Кэширование повторяющихся результатов
    - Batch обработка для множественных изображений
+   - Async/await для параллельных запросов
 
-4. **Гибкость интеграции**
-   - SDK для различных платформ
-   - REST API сервер (опционально)
-   - WebSocket real-time поддержка
-   - CLI инструмент для тестирования
+5. **Гибкость интеграции**
+   - Python библиотека (core)
+   - FastAPI REST API сервер
+   - CLI инструмент (Typer/Click)
+   - Streamlit/Gradio UI (для быстрого прототипирования)
 
-5. **Безопасность и приватность**
-   - Локальная обработка (опционально)
-   - GDPR compliance
-   - Шифрование данных в transit
-   - Опция self-hosted deployment
+6. **Безопасность и приватность**
+   - GDPR compliance (не храним фото)
+   - Шифрование API ключей
+   - Опция self-hosted deployment (Docker)
+   - Rate limiting для защиты от злоупотреблений
 
 ---
 
-## 📋 ПЛАН РАБОТ
+## 📋 ПЛАН РАБОТ (Python MVP)
 
-### ФАЗА 1: Архитектура и проектирование (3-5 дней)
+### ФАЗА 1: Архитектура и проектирование (2-3 дня)
 
-#### 1.1 Определение структуры модуля
+#### 1.1 Определение структуры Python проекта
 ```
-dashboard-error-module/
-├── packages/
-│   ├── core/                    # Ядро модуля (framework-agnostic)
-│   │   ├── src/
-│   │   │   ├── analyzers/       # Анализаторы изображений
-│   │   │   ├── parsers/         # Парсеры ответов AI
-│   │   │   ├── providers/       # AI провайдеры (OpenAI, Claude, Gemini)
-│   │   │   ├── knowledge/       # База знаний индикаторов
-│   │   │   ├── types/           # TypeScript типы
-│   │   │   └── index.ts         # Публичный API
-│   │   ├── tests/
-│   │   └── package.json
+dashboard-analyzer/
+├── dashboard_analyzer/          # Главный Python пакет
+│   ├── __init__.py
+│   ├── core/                    # Ядро модуля
+│   │   ├── __init__.py
+│   │   ├── analyzer.py          # Главный класс DashboardAnalyzer
+│   │   ├── image_processor.py   # Обработка изображений (Pillow)
+│   │   └── result.py            # Модели результатов (dataclasses/Pydantic)
 │   │
-│   ├── react/                   # React интеграция
-│   │   ├── src/
-│   │   │   ├── hooks/           # useDashboardAnalyzer
-│   │   │   ├── components/      # UI компоненты
-│   │   │   └── index.ts
-│   │   └── package.json
+│   ├── providers/               # AI провайдеры
+│   │   ├── __init__.py
+│   │   ├── base.py              # Абстрактный класс
+│   │   ├── openai.py            # OpenAI GPT-4o Vision
+│   │   ├── claude.py            # Claude 3.5 Sonnet
+│   │   └── gemini.py            # Google Gemini (опционально)
 │   │
-│   ├── node-server/            # Node.js REST API сервер
-│   │   ├── src/
-│   │   │   ├── routes/
-│   │   │   ├── middleware/
-│   │   │   └── index.ts
-│   │   └── package.json
+│   ├── knowledge/               # База знаний
+│   │   ├── __init__.py
+│   │   ├── indicators.py        # Класс работы с БД индикаторов
+│   │   ├── data/                # JSON файлы с данными
+│   │   │   ├── indicators.json  # База индикаторов
+│   │   │   ├── manufacturers.json
+│   │   │   ├── eu_standards.json
+│   │   │   └── obd_mapping.json
+│   │   └── locales/             # Переводы
+│   │       ├── en.json
+│   │       ├── de.json
+│   │       ├── fr.json
+│   │       └── ...
 │   │
-│   └── cli/                    # CLI инструмент
-│       ├── src/
-│       └── package.json
+│   ├── parsers/                 # Парсеры ответов AI
+│   │   ├── __init__.py
+│   │   ├── json_parser.py       # JSON извлечение
+│   │   └── text_parser.py       # Fallback текстовый парсинг
+│   │
+│   └── utils/                   # Утилиты
+│       ├── __init__.py
+│       ├── cache.py             # Кэширование (functools.lru_cache)
+│       ├── logger.py            # Логирование
+│       └── validators.py        # Валидация входных данных
 │
-├── docs/                       # Документация
+├── dashboard_api/               # FastAPI REST сервер (опционально)
+│   ├── __init__.py
+│   ├── main.py                  # FastAPI приложение
+│   ├── routes.py                # API endpoints
+│   ├── dependencies.py          # DI контейнер
+│   └── config.py                # Конфигурация
+│
+├── dashboard_cli/               # CLI инструмент
+│   ├── __init__.py
+│   └── main.py                  # Typer/Click CLI
+│
+├── tests/                       # Тесты (pytest)
+│   ├── unit/
+│   │   ├── test_analyzer.py
+│   │   ├── test_providers.py
+│   │   └── test_parsers.py
+│   ├── integration/
+│   │   └── test_full_flow.py
+│   └── fixtures/
+│       └── images/              # Тестовые изображения
+│
+├── examples/                    # Примеры использования
+│   ├── basic_usage.py
+│   ├── fastapi_integration.py
+│   ├── flask_integration.py
+│   ├── django_integration.py
+│   └── streamlit_ui.py
+│
+├── docs/                        # Документация (MkDocs)
+│   ├── index.md
 │   ├── getting-started.md
 │   ├── api-reference.md
 │   ├── european-standards.md
-│   └── examples/
+│   └── examples.md
 │
-├── examples/                   # Примеры интеграции
-│   ├── nextjs/
-│   ├── express/
-│   ├── react-native/
-│   └── vanilla-js/
-│
-└── scripts/                    # Build скрипты
+├── pyproject.toml               # Poetry/setuptools конфигурация
+├── requirements.txt             # Production зависимости
+├── requirements-dev.txt         # Dev зависимости
+├── Dockerfile                   # Docker образ для API
+├── docker-compose.yml           # Для локального запуска
+└── README.md
 ```
 
 **Задачи:**
-- [ ] Создать monorepo структуру (pnpm workspaces / Turborepo)
-- [ ] Определить публичные API интерфейсы
-- [ ] Спроектировать систему плагинов для AI провайдеров
-- [ ] Определить схему конфигурации модуля
+- [ ] Создать структуру проекта (Poetry/setuptools)
+- [ ] Определить публичные API интерфейсы (Pydantic модели)
+- [ ] Спроектировать систему плагинов для AI провайдеров (ABC)
+- [ ] Определить схему конфигурации (Pydantic Settings)
 
-#### 1.2 Спецификация API
+#### 1.2 Спецификация Python API
 
-**Основной API (TypeScript):**
-```typescript
-// Инициализация
-const analyzer = new DashboardAnalyzer({
-  providers: {
-    primary: 'openai',
-    fallback: ['claude', 'gemini']
-  },
-  config: {
-    openai: { apiKey: 'xxx', model: 'gpt-4o' },
-    claude: { apiKey: 'xxx', model: 'claude-3-5-sonnet' }
-  },
-  locale: 'de-DE',  // Европейская локаль
-  market: 'europe'   // Европейский фокус
-});
+**Основной API (Python):**
+```python
+from dashboard_analyzer import DashboardAnalyzer, AnalyzerConfig
+from dashboard_analyzer.providers import OpenAIProvider, ClaudeProvider
+from pathlib import Path
 
-// Анализ статичного изображения
-const result = await analyzer.analyzeImage({
-  image: Buffer | File | URL | base64,
-  mode: 'dashboard' | 'damage' | 'tire' | 'auto',
-  includeDetails: true
-});
+# Инициализация
+analyzer = DashboardAnalyzer(
+    config=AnalyzerConfig(
+        primary_provider="openai",
+        fallback_providers=["claude"],
+        openai_api_key="sk-xxx",
+        claude_api_key="sk-ant-xxx",
+        locale="de-DE",  # Европейская локаль
+        market="europe"   # Европейский фокус
+    )
+)
 
-// Результат
-interface AnalysisResult {
-  type: 'dashboard' | 'damage' | 'tire';
+# Анализ статичного изображения
+# Вариант 1: из файла
+result = analyzer.analyze_image(
+    image_path="dashboard.jpg",
+    mode="auto"  # 'dashboard' | 'damage' | 'tire' | 'auto'
+)
 
-  // Для dashboard
-  indicators?: DashboardIndicator[];
-  criticalWarnings?: CriticalWarning[];
+# Вариант 2: из байтов (для загрузки через API)
+with open("dashboard.jpg", "rb") as f:
+    image_bytes = f.read()
+result = analyzer.analyze_image(image=image_bytes)
 
-  // Общие поля
-  diagnosis: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  causes: Cause[];
-  recommendations: Recommendation[];
-  estimatedCost?: CostRange;
+# Вариант 3: из URL
+result = analyzer.analyze_image(
+    image_url="https://example.com/dashboard.jpg"
+)
 
-  // Метаданные
-  confidence: number;
-  processingTime: number;
-  provider: 'openai' | 'claude' | 'gemini';
-}
+# Вариант 4: из PIL Image (для захвата с камеры)
+from PIL import Image
+img = Image.open("dashboard.jpg")
+result = analyzer.analyze_image(image=img)
 
-interface DashboardIndicator {
-  id: string;
-  symbol: string;
-  color: 'red' | 'yellow' | 'green' | 'blue' | 'white';
-  state: 'solid' | 'flashing';
-  category: 'critical' | 'warning' | 'info';
-  name: string;
-  nameLocalized: Record<string, string>;
-  description: string;
-  descriptionLocalized: Record<string, string>;
-  action: string;
-  actionLocalized: Record<string, string>;
-  urgency: 1 | 2 | 3 | 4 | 5;
-  relatedIndicators?: string[];
-  manufacturerSpecific?: {
-    brands: string[];
-    notes: string;
-  };
-  euCompliance?: {
-    regulation: string;
-    mandatory: boolean;
-  };
-}
+# Результат (Pydantic модель)
+from pydantic import BaseModel
+from typing import List, Optional, Literal
+from datetime import datetime
 
-// Real-time streaming
-const stream = analyzer.createRealtimeSession({
-  mode: 'websocket',
-  video: true,
-  audio: true
-});
+class AnalysisResult(BaseModel):
+    """Результат анализа изображения"""
+    type: Literal['dashboard', 'damage', 'tire']
 
-stream.on('indicator-detected', (indicator) => {
-  console.log('New warning:', indicator);
-});
+    # Для dashboard
+    indicators: Optional[List[DashboardIndicator]] = None
+    critical_warnings: Optional[List[str]] = None
 
-stream.on('critical-warning', (warning) => {
-  alert('CRITICAL: ' + warning.message);
-});
+    # Общие поля
+    diagnosis: str
+    severity: Literal['low', 'medium', 'high', 'critical']
+    causes: List[str]
+    recommendations: List[str]
+    estimated_cost: Optional[dict] = None  # {"min": 100, "max": 500, "currency": "EUR"}
+
+    # Метаданные
+    confidence: float  # 0.0 - 1.0
+    processing_time: float  # seconds
+    provider_used: str  # 'openai' | 'claude'
+    timestamp: datetime
+
+class DashboardIndicator(BaseModel):
+    """Индикатор приборной панели"""
+    id: str  # 'oil_pressure', 'check_engine', etc.
+    symbol: str  # описание символа
+    color: Literal['red', 'yellow', 'green', 'blue', 'white']
+    state: Literal['solid', 'flashing']
+    category: Literal['critical', 'warning', 'info']
+
+    # Мультиязычные поля
+    name: str
+    description: str
+    action: str
+
+    # Дополнительная информация
+    urgency: int  # 1-5 (5 = критично)
+    related_indicators: Optional[List[str]] = None
+    manufacturer_specific: Optional[dict] = None
+    eu_compliance: Optional[dict] = None
+    obd_codes: Optional[List[str]] = None  # ['P0420', 'P0430']
+
+# Пример использования
+print(f"Обнаружено индикаторов: {len(result.indicators)}")
+print(f"Критичность: {result.severity}")
+
+for indicator in result.indicators:
+    print(f"🔴 {indicator.name} ({indicator.color})")
+    print(f"   Действие: {indicator.action}")
+    if indicator.obd_codes:
+        print(f"   OBD-II коды: {', '.join(indicator.obd_codes)}")
+```
+
+**Асинхронная версия (для высокой нагрузки):**
+```python
+import asyncio
+from dashboard_analyzer import AsyncDashboardAnalyzer
+
+async def analyze_multiple_images():
+    analyzer = AsyncDashboardAnalyzer(config=...)
+
+    # Параллельный анализ нескольких изображений
+    images = ["dash1.jpg", "dash2.jpg", "dash3.jpg"]
+    results = await asyncio.gather(*[
+        analyzer.analyze_image(img) for img in images
+    ])
+
+    return results
+
+# Запуск
+results = asyncio.run(analyze_multiple_images())
 ```
 
 **Задачи:**
-- [ ] Определить TypeScript интерфейсы для всех типов данных
-- [ ] Разработать систему локализации (i18n)
-- [ ] Создать валидацию входных данных (Zod схемы)
-- [ ] Спроектировать систему событий для real-time режима
+- [ ] Определить Pydantic модели для всех типов данных
+- [ ] Разработать систему локализации (i18n с поддержкой JSON)
+- [ ] Создать валидацию входных данных (Pydantic validators)
+- [ ] Реализовать sync и async версии API
 
 #### 1.3 Европейская адаптация
 
@@ -257,54 +328,206 @@ stream.on('critical-warning', (warning) => {
 
 ---
 
-### ФАЗА 2: Разработка Core модуля (7-10 дней)
+### ФАЗА 2: Разработка Core модуля (5-7 дней)
 
-#### 2.1 Создание ядра (`@dashboard-module/core`)
+#### 2.1 Создание ядра (`dashboard_analyzer.core`)
 
 **2.1.1 Провайдеры AI**
-```typescript
-// Абстракция провайдера
-interface AIProvider {
-  name: string;
-  analyzeImage(params: AnalyzeParams): Promise<RawAnalysis>;
-  supportsStreaming: boolean;
-  createStream?(params: StreamParams): AsyncIterableIterator<StreamChunk>;
-}
+```python
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, Any
+from pydantic import BaseModel
 
-// Реализации
-class OpenAIProvider implements AIProvider { ... }
-class ClaudeProvider implements AIProvider { ... }
-class GeminiProvider implements AIProvider { ... }
-class LocalVisionProvider implements AIProvider { ... } // Опционально
+class AIProviderConfig(BaseModel):
+    """Конфигурация AI провайдера"""
+    api_key: str
+    model: Optional[str] = None
+    timeout: int = 30
+    max_retries: int = 3
+
+class BaseAIProvider(ABC):
+    """Абстрактный класс для AI провайдеров"""
+
+    def __init__(self, config: AIProviderConfig):
+        self.config = config
+
+    @abstractmethod
+    async def analyze_image(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Анализ изображения через Vision API"""
+        pass
+
+    @abstractmethod
+    def get_provider_name(self) -> str:
+        """Имя провайдера"""
+        pass
+
+# Реализации
+class OpenAIProvider(BaseAIProvider):
+    """OpenAI GPT-4o Vision провайдер"""
+
+    def __init__(self, config: AIProviderConfig):
+        super().__init__(config)
+        from openai import AsyncOpenAI
+        self.client = AsyncOpenAI(
+            api_key=config.api_key,
+            timeout=config.timeout
+        )
+
+    async def analyze_image(self, image_bytes: bytes, prompt: str, **kwargs):
+        import base64
+        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+
+        response = await self.client.chat.completions.create(
+            model=self.config.model or "gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": self._get_system_prompt()
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=1000,
+            temperature=0.3
+        )
+
+        return response.choices[0].message.content
+
+    def get_provider_name(self) -> str:
+        return "openai"
+
+class ClaudeProvider(BaseAIProvider):
+    """Claude 3.5 Sonnet провайдер"""
+    # Аналогичная реализация для Anthropic API
+    pass
+
+class GeminiProvider(BaseAIProvider):
+    """Google Gemini провайдер (опционально)"""
+    pass
 ```
 
 **Задачи:**
-- [ ] Реализовать базовый абстрактный класс `BaseAIProvider`
-- [ ] Портировать логику `callOpenAIVision()` в `OpenAIProvider`
-- [ ] Портировать логику `callClaudeVision()` в `ClaudeProvider`
-- [ ] Реализовать `GeminiProvider` с WebSocket поддержкой
-- [ ] Добавить retry логику с экспоненциальным backoff
-- [ ] Реализовать circuit breaker для отказоустойчивости
+- [ ] Реализовать базовый абстрактный класс `BaseAIProvider` (ABC)
+- [ ] Портировать логику из `callOpenAIVision()` в `OpenAIProvider`
+- [ ] Портировать логику из `callClaudeVision()` в `ClaudeProvider`
+- [ ] Добавить retry логику с экспоненциальным backoff (tenacity)
+- [ ] Реализовать обработку ошибок и таймаутов
+- [ ] Добавить логирование запросов/ответов
 
 **2.1.2 База знаний индикаторов**
-```typescript
-class IndicatorKnowledgeBase {
-  private indicators: Map<string, IndicatorDefinition>;
+```python
+from typing import List, Optional, Dict
+import json
+from pathlib import Path
 
-  getIndicator(id: string): IndicatorDefinition | null;
-  searchBySymbol(symbol: string): IndicatorDefinition[];
-  filterByColor(color: IndicatorColor): IndicatorDefinition[];
-  getByManufacturer(brand: string): IndicatorDefinition[];
-  getByCriticality(level: number): IndicatorDefinition[];
+class IndicatorKnowledgeBase:
+    """База знаний индикаторов приборной панели"""
+
+    def __init__(self, locale: str = "en"):
+        self.locale = locale
+        self._load_indicators()
+        self._load_manufacturers()
+        self._load_obd_mapping()
+
+    def _load_indicators(self):
+        """Загрузка базы индикаторов из JSON"""
+        data_path = Path(__file__).parent / "data" / "indicators.json"
+        with open(data_path, "r", encoding="utf-8") as f:
+            self.indicators = json.load(f)
+
+    def get_indicator(self, indicator_id: str) -> Optional[Dict]:
+        """Получить индикатор по ID"""
+        return self.indicators.get(indicator_id)
+
+    def search_by_symbol(self, symbol: str) -> List[Dict]:
+        """Поиск по символу"""
+        return [
+            ind for ind in self.indicators.values()
+            if symbol.lower() in ind.get("symbol", "").lower()
+        ]
+
+    def filter_by_color(self, color: str) -> List[Dict]:
+        """Фильтр по цвету (red, yellow, green)"""
+        return [
+            ind for ind in self.indicators.values()
+            if ind.get("color") == color
+        ]
+
+    def get_by_manufacturer(self, brand: str) -> List[Dict]:
+        """Получить специфичные индикаторы для производителя"""
+        return [
+            ind for ind in self.indicators.values()
+            if brand.lower() in [b.lower() for b in ind.get("brands", [])]
+        ]
+
+    def get_by_criticality(self, min_urgency: int) -> List[Dict]:
+        """Получить индикаторы с уровнем критичности >= min_urgency"""
+        return [
+            ind for ind in self.indicators.values()
+            if ind.get("urgency", 0) >= min_urgency
+        ]
+
+    def get_localized_text(self, indicator_id: str, field: str) -> str:
+        """Получить локализованный текст"""
+        indicator = self.get_indicator(indicator_id)
+        if not indicator:
+            return ""
+
+        translations = indicator.get("translations", {})
+        locale_data = translations.get(self.locale, translations.get("en", {}))
+        return locale_data.get(field, "")
+
+# Пример JSON структуры (indicators.json)
+{
+  "oil_pressure": {
+    "id": "oil_pressure",
+    "symbol": "oil_can",
+    "color": "red",
+    "category": "critical",
+    "urgency": 5,
+    "brands": ["universal"],
+    "obd_codes": ["P0520", "P0521", "P0522"],
+    "eu_compliance": {
+      "regulation": "ISO 2575",
+      "mandatory": true
+    },
+    "translations": {
+      "en": {
+        "name": "Oil Pressure Warning",
+        "description": "Low engine oil pressure detected",
+        "action": "STOP immediately and check oil level"
+      },
+      "de": {
+        "name": "Öldruckwarnung",
+        "description": "Niedriger Motoröldruck erkannt",
+        "action": "SOFORT anhalten und Ölstand prüfen"
+      }
+    }
+  }
 }
 ```
 
 **Задачи:**
-- [ ] Извлечь данные из `dashboard-indicators.ts` в структурированный JSON
-- [ ] Создать TypeScript типы для индикаторов
+- [ ] Извлечь данные из `dashboard-indicators.ts` в JSON структуру
+- [ ] Создать Pydantic модели для индикаторов
 - [ ] Реализовать поиск и фильтрацию
-- [ ] Добавить версионирование базы знаний
-- [ ] Создать механизм обновления базы (remote updates)
+- [ ] Добавить версионирование базы знаний (metadata с версией)
+- [ ] Создать скрипт для конвертации TS → JSON
 
 **2.1.3 Парсеры результатов**
 ```typescript
