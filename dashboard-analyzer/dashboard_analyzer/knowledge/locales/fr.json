@@ -1,0 +1,45 @@
+{
+  "locale": "fr",
+  "indicators": {
+    "oil_pressure": {
+      "name": "Pression d'huile faible",
+      "action": "ARRÊTEZ immédiatement et vérifiez le niveau d'huile"
+    },
+    "engine_temperature": {
+      "name": "Surchauffe du moteur",
+      "action": "Arrêtez-vous en toute sécurité et laissez refroidir"
+    },
+    "brake_warning": {
+      "name": "Système de freinage",
+      "action": "Vérifiez si le frein à main est desserré. Sinon, NE PAS conduire"
+    },
+    "battery_charging": {
+      "name": "Défaut de charge",
+      "action": "Conduisez jusqu'à un endroit sûr"
+    },
+    "airbag_srs": {
+      "name": "Dysfonctionnement airbag",
+      "action": "Conduite possible mais airbags peuvent ne pas se déclencher"
+    },
+    "power_steering": {
+      "name": "Direction assistée défaillante",
+      "action": "Direction lourde mais conduite possible"
+    },
+    "check_engine": {
+      "name": "Voyant moteur",
+      "action": "Planifier un diagnostic"
+    },
+    "abs_warning": {
+      "name": "Avertissement ABS",
+      "action": "Freins normaux fonctionnent, ABS désactivé"
+    },
+    "traction_control": {
+      "name": "Contrôle de traction",
+      "action": "Système désactivé ou défectueux"
+    },
+    "tire_pressure": {
+      "name": "Pression des pneus faible",
+      "action": "Vérifier toutes les pressions"
+    }
+  }
+}

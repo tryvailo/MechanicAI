@@ -1,0 +1,45 @@
+{
+  "locale": "de",
+  "indicators": {
+    "oil_pressure": {
+      "name": "Öldruckwarnung",
+      "action": "SOFORT anhalten und Ölstand prüfen"
+    },
+    "engine_temperature": {
+      "name": "Motorüberhitzung",
+      "action": "Sicher anhalten und Motor abkühlen lassen"
+    },
+    "brake_warning": {
+      "name": "Bremsanlage Warnung",
+      "action": "Prüfen ob Handbremse gelöst ist. Falls ja, NICHT weiterfahren"
+    },
+    "battery_charging": {
+      "name": "Ladesystem Fehler",
+      "action": "Zum nächsten sicheren Ort fahren"
+    },
+    "airbag_srs": {
+      "name": "Airbag Störung",
+      "action": "Fahrtauglich, aber Airbags könnten nicht auslösen"
+    },
+    "power_steering": {
+      "name": "Servolenkung Ausfall",
+      "action": "Lenkung wird schwergängig, aber fahrbar"
+    },
+    "check_engine": {
+      "name": "Motorkontrollleuchte",
+      "action": "Diagnose vereinbaren"
+    },
+    "abs_warning": {
+      "name": "ABS Warnung",
+      "action": "Normale Bremsen funktionieren, ABS deaktiviert"
+    },
+    "traction_control": {
+      "name": "Traktionskontrolle Warnung",
+      "action": "System deaktiviert oder defekt"
+    },
+    "tire_pressure": {
+      "name": "Reifendruckkontrolle",
+      "action": "Alle Reifendrücke prüfen"
+    }
+  }
+}

@@ -8,6 +8,7 @@ from typing import Any, Dict, Literal, Optional, Union
 
 from PIL import Image
 
+from ..knowledge.indicators import IndicatorKnowledgeBase
 from ..parsers.response_parser import parse_ai_response
 from ..prompts.dashboard import CAR_DIAGNOSTICS_SYSTEM_PROMPT, get_user_prompt
 from ..providers.openai_provider import OpenAIProvider
@@ -63,6 +64,14 @@ class DashboardAnalyzer:
             max_retries=config.max_retries,
         )
         self.provider = OpenAIProvider(provider_config)
+
+        # Initialize knowledge base (optional - for OBD codes and localization)
+        try:
+            self.knowledge_base = IndicatorKnowledgeBase(locale=config.locale)
+            logger.info(f"Knowledge base loaded for locale={config.locale}")
+        except Exception as e:
+            logger.warning(f"Failed to load knowledge base: {e}. Continuing without it.")
+            self.knowledge_base = None
 
         # Cache for results
         self._cache: Dict[str, AnalysisResult] = {}
@@ -243,17 +252,23 @@ class DashboardAnalyzer:
             indicators = []
             for light in parsed_data["dashboard_lights"]:
                 # Map to DashboardIndicator model
-                indicator = DashboardIndicator(
-                    id=light.get("symbol", "unknown").lower().replace(" ", "_"),
-                    symbol=light.get("symbol", "unknown"),
-                    color=self._normalize_color(light.get("color", "yellow")),
-                    state="solid",  # Default, AI doesn't always specify
-                    category=self._infer_category(light.get("color", "yellow")),
-                    name=light.get("meaning", "Unknown indicator"),
-                    description=light.get("meaning", ""),
-                    action=light.get("action", "Consult mechanic"),
-                    urgency=self._infer_urgency(light.get("color", "yellow")),
-                )
+                indicator_dict = {
+                    "id": light.get("symbol", "unknown").lower().replace(" ", "_"),
+                    "symbol": light.get("symbol", "unknown"),
+                    "color": self._normalize_color(light.get("color", "yellow")),
+                    "state": "solid",  # Default, AI doesn't always specify
+                    "category": self._infer_category(light.get("color", "yellow")),
+                    "name": light.get("meaning", "Unknown indicator"),
+                    "description": light.get("meaning", ""),
+                    "action": light.get("action", "Consult mechanic"),
+                    "urgency": self._infer_urgency(light.get("color", "yellow")),
+                }
+
+                # Enrich with knowledge base (OBD codes, localization)
+                if self.knowledge_base:
+                    indicator_dict = self.knowledge_base.enrich_indicator(indicator_dict)
+
+                indicator = DashboardIndicator(**indicator_dict)
                 indicators.append(indicator)
 
         return AnalysisResult(

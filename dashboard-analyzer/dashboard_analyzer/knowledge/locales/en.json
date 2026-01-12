@@ -1,0 +1,45 @@
+{
+  "locale": "en",
+  "indicators": {
+    "oil_pressure": {
+      "name": "Oil Pressure Warning",
+      "action": "STOP immediately and check oil level"
+    },
+    "engine_temperature": {
+      "name": "Engine Overheating",
+      "action": "Pull over safely and let engine cool"
+    },
+    "brake_warning": {
+      "name": "Brake System Warning",
+      "action": "Check if handbrake is released. If still on, STOP driving"
+    },
+    "battery_charging": {
+      "name": "Charging System Failure",
+      "action": "Drive to nearest safe location"
+    },
+    "airbag_srs": {
+      "name": "Airbag System Malfunction",
+      "action": "Safe to drive but airbags may not deploy"
+    },
+    "power_steering": {
+      "name": "Power Steering Failure",
+      "action": "Steering will be heavy but drivable"
+    },
+    "check_engine": {
+      "name": "Check Engine Light",
+      "action": "Schedule diagnostic scan"
+    },
+    "abs_warning": {
+      "name": "ABS Warning",
+      "action": "Normal brakes work, ABS disabled"
+    },
+    "traction_control": {
+      "name": "Traction Control Warning",
+      "action": "System disabled or faulty"
+    },
+    "tire_pressure": {
+      "name": "Low Tire Pressure",
+      "action": "Check all tire pressures"
+    }
+  }
+}
