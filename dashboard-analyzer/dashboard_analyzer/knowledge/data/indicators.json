@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Lightweight indicator knowledge base - OBD codes and localization only",
+    "last_updated": "2026-01-12"
+  },
+  "indicators": {
+    "oil_pressure": {
+      "obd_codes": ["P0520", "P0521", "P0522", "P0523", "P0524"],
+      "urgency": 5,
+      "category": "critical"
+    },
+    "engine_temperature": {
+      "obd_codes": ["P0217", "P0218", "P0219"],
+      "urgency": 5,
+      "category": "critical"
+    },
+    "brake_warning": {
+      "obd_codes": ["C0035", "C0036", "C0040"],
+      "urgency": 5,
+      "category": "critical"
+    },
+    "battery_charging": {
+      "obd_codes": ["P0560", "P0562", "P0563"],
+      "urgency": 4,
+      "category": "critical"
+    },
+    "airbag_srs": {
+      "obd_codes": ["B0012", "B0013", "B0015", "B0020", "B0021"],
+      "urgency": 3,
+      "category": "critical"
+    },
+    "power_steering": {
+      "obd_codes": ["C0460", "C0461", "C0475"],
+      "urgency": 3,
+      "category": "critical"
+    },
+    "check_engine": {
+      "obd_codes": ["P0420", "P0430", "P0171", "P0174", "P0300", "P0301", "P0302", "P0303"],
+      "urgency": 3,
+      "category": "warning"
+    },
+    "abs_warning": {
+      "obd_codes": ["C0035", "C0040", "C0045", "C0050"],
+      "urgency": 3,
+      "category": "warning"
+    },
+    "traction_control": {
+      "obd_codes": ["C0710", "C0800", "C0900"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "tire_pressure": {
+      "obd_codes": [],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "dpf_warning": {
+      "obd_codes": ["P2002", "P2003", "P242F"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "glow_plug": {
+      "obd_codes": ["P0380", "P0381", "P0382"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "epc_warning": {
+      "obd_codes": ["P2100", "P2101", "P2102", "P2103"],
+      "urgency": 3,
+      "category": "warning"
+    },
+    "service_required": {
+      "obd_codes": [],
+      "urgency": 1,
+      "category": "warning"
+    },
+    "low_fuel": {
+      "obd_codes": [],
+      "urgency": 2,
+      "category": "info"
+    }
+  }
+}
