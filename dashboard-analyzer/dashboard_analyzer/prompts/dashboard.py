@@ -249,16 +249,18 @@ CRITICAL: Always respond with valid JSON in this EXACT format:
 - Minor warnings
 - Informational only
 
-## EUROPEAN MARKET SPECIFICS
+## REGIONAL SPECIFICS
 
-**Distance Units:** km/h, liters (not mph, gallons)
+### For European Union (Continental)
+
+**Distance Units:** km/h, liters, L/100km
 **Currency:** EUR (€) for cost estimates
 **Regulations Reference:**
 - TÜV (Germany): Technical inspection
-- MOT (UK): Ministry of Transport test
 - Contrôle Technique (France)
 - ITV (Spain)
 - APK (Netherlands)
+- Przegląd (Poland)
 
 **Cost Estimates (EUR):**
 - Diagnostic scan: €50-100
@@ -268,6 +270,26 @@ CRITICAL: Always respond with valid JSON in this EXACT format:
 - DPF replacement: €1500-2500
 - Head gasket: €1500-3000
 
+### For United Kingdom
+
+**Distance Units:** miles, mph, mpg (NOT km/h - UK uses imperial for road distances)
+**Fuel Consumption:** mpg (miles per gallon) or L/100km
+**Currency:** GBP (£) for cost estimates
+**Regulations:** MOT (Ministry of Transport test) - annual for vehicles 3+ years old
+**Terminology:** Use UK English (colour, centre, tyre, petrol/diesel)
+
+**Cost Estimates (GBP):**
+- Diagnostic scan: £40-80
+- Oil change: £60-120
+- Brake pads: £120-250
+- DPF cleaning: £150-350
+- DPF replacement: £1200-2000
+- Head gasket: £1200-2500
+
+**Important:** Detect region from locale code:
+- `en-GB`, `en-UK` → Use UK units (miles, mph, £)
+- `en`, `en-EU`, `de`, `fr`, etc. → Use EU units (km, km/h, €)
+
 ## QUALITY CHECKLIST
 
 Before responding, verify:
@@ -276,8 +298,8 @@ Before responding, verify:
 ☑ Severity correctly assessed
 ☑ Actions are specific and clear
 ☑ JSON format is valid
-☑ European context considered
-☑ Cost estimates in EUR
+☑ Correct regional units used (UK: miles/mph/£, EU: km/km/h/€)
+☑ Cost estimates in appropriate currency (£ for UK, € for EU)
 ☑ Manufacturer-specific notes if applicable
 
 ## EXAMPLE ANALYSIS
@@ -329,11 +351,11 @@ def get_user_prompt(locale: str = "en", additional_context: str = "") -> str:
     Get user prompt for analysis.
 
     Args:
-        locale: Language code (en, de, fr, ru, etc.)
+        locale: Language code (en, de, fr, ru, en-GB, etc.)
         additional_context: Additional user context
 
     Returns:
-        User prompt string optimized for GPT-4o Vision
+        User prompt string optimized for Gemini Vision
     """
     base_prompt = (
         "Analyze this car dashboard photo. "
@@ -347,10 +369,12 @@ def get_user_prompt(locale: str = "en", additional_context: str = "") -> str:
 
     # Add locale-specific instructions
     locale_instructions = {
-        "de": "\n\nIMPORTANT: User speaks German. Provide localized field names in German where applicable.",
-        "fr": "\n\nIMPORTANT: User speaks French. Provide localized field names in French where applicable.",
-        "ru": "\n\nIMPORTANT: User speaks Russian. Provide localized field names in Russian where applicable.",
-        "es": "\n\nIMPORTANT: User speaks Spanish. Provide localized field names in Spanish where applicable.",
+        "en-GB": "\n\nIMPORTANT: User is in United Kingdom. Use miles/mph (NOT km/h), GBP (£) for costs, UK English (tyre, colour), and reference MOT requirements.",
+        "en-UK": "\n\nIMPORTANT: User is in United Kingdom. Use miles/mph (NOT km/h), GBP (£) for costs, UK English (tyre, colour), and reference MOT requirements.",
+        "de": "\n\nIMPORTANT: User speaks German. Provide localized field names in German where applicable. Use km/h and EUR (€).",
+        "fr": "\n\nIMPORTANT: User speaks French. Provide localized field names in French where applicable. Use km/h and EUR (€).",
+        "ru": "\n\nIMPORTANT: User speaks Russian. Provide localized field names in Russian where applicable. Use km/h and EUR (€).",
+        "es": "\n\nIMPORTANT: User speaks Spanish. Provide localized field names in Spanish where applicable. Use km/h and EUR (€).",
     }
 
     if locale in locale_instructions:

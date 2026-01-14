@@ -55,7 +55,7 @@ tests/unit/test_analyzer.py ................ [100%]
 
 ```bash
 # Set API key
-export OPENAI_API_KEY=sk-your-key-here
+export GEMINI_API_KEY=sk-your-key-here
 
 # Run all tests including integration
 pytest
@@ -113,7 +113,7 @@ from dashboard_analyzer import DashboardAnalyzer
 
 # Initialize
 analyzer = DashboardAnalyzer(
-    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    gemini_api_key=os.getenv("GEMINI_API_KEY"),
     locale="en"
 )
 
@@ -183,17 +183,17 @@ ls dashboard_analyzer/knowledge/locales/
 
 ```bash
 # Check if key is set
-echo $OPENAI_API_KEY
+echo $GEMINI_API_KEY
 
 # Or use .env file
-echo "OPENAI_API_KEY=sk-xxx" > .env
+echo "GEMINI_API_KEY=sk-xxx" > .env
 ```
 
 ## Test Fixtures
 
 Available pytest fixtures (see `conftest.py`):
 
-- `mock_openai_response` - Mocked OpenAI Vision API response
+- `mock_openai_response` - Mocked Gemini Vision API response (fixture name for compatibility)
 - `sample_indicator_data` - Sample dashboard indicator data
 
 ## Writing New Tests
@@ -205,7 +205,7 @@ def test_my_feature():
     """Test my new feature."""
     from dashboard_analyzer import DashboardAnalyzer
     
-    analyzer = DashboardAnalyzer(openai_api_key="test-key")
+    analyzer = DashboardAnalyzer(gemini_api_key="test-key")
     # Test your feature
     assert analyzer is not None
 ```

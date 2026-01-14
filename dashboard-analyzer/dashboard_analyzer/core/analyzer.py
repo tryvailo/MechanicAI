@@ -11,7 +11,7 @@ from PIL import Image
 from ..knowledge.indicators import IndicatorKnowledgeBase
 from ..parsers.response_parser import parse_ai_response
 from ..prompts.dashboard import CAR_DIAGNOSTICS_SYSTEM_PROMPT, get_user_prompt
-from ..providers.openai_provider import OpenAIProvider
+from ..providers.gemini_provider import GeminiProvider
 from .config import AIProviderConfig, AnalyzerConfig
 from .exceptions import ConfigurationError, ImageProcessingError, InvalidImageError
 from .models import AnalysisResult, DashboardIndicator
@@ -26,7 +26,7 @@ class DashboardAnalyzer:
     def __init__(
         self,
         config: Optional[AnalyzerConfig] = None,
-        openai_api_key: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
         **kwargs: Any,
     ):
         """
@@ -34,7 +34,7 @@ class DashboardAnalyzer:
 
         Args:
             config: Analyzer configuration
-            openai_api_key: OpenAI API key (overrides config)
+            gemini_api_key: OpenAI API key (overrides config)
             **kwargs: Additional config parameters
 
         Raises:
@@ -45,25 +45,25 @@ class DashboardAnalyzer:
             config = AnalyzerConfig(**kwargs)
 
         # Override API key if provided
-        if openai_api_key:
-            config.openai_api_key = openai_api_key
+        if gemini_api_key:
+            config.gemini_api_key = gemini_api_key
 
-        if not config.openai_api_key:
+        if not config.gemini_api_key:
             raise ConfigurationError(
-                "OpenAI API key is required. "
-                "Set OPENAI_API_KEY environment variable or pass openai_api_key parameter."
+                "Gemini API key is required. "
+                "Set GEMINI_API_KEY environment variable or pass gemini_api_key parameter."
             )
 
         self.config = config
 
         # Initialize provider
         provider_config = AIProviderConfig(
-            api_key=config.openai_api_key,
-            model=config.openai_model,
+            api_key=config.gemini_api_key,
+            model=config.gemini_model,
             timeout=config.timeout,
             max_retries=config.max_retries,
         )
-        self.provider = OpenAIProvider(provider_config)
+        self.provider = GeminiProvider(provider_config)
 
         # Initialize knowledge base (optional - for OBD codes and localization)
         try:

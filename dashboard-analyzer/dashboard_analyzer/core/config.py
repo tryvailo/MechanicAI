@@ -10,11 +10,11 @@ class AnalyzerConfig(BaseSettings):
     """Main configuration for DashboardAnalyzer."""
 
     # API Keys
-    openai_api_key: Optional[str] = Field(None, alias="OPENAI_API_KEY")
+    gemini_api_key: Optional[str] = Field(None, alias="GEMINI_API_KEY")
 
     # Provider settings
-    primary_provider: Literal["openai"] = "openai"
-    openai_model: str = "gpt-4o"
+    primary_provider: Literal["gemini"] = "gemini"
+    gemini_model: str = "gemini-1.5-flash-002"
 
     # General settings
     locale: str = "en"

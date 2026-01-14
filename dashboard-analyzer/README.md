@@ -1,15 +1,17 @@
 # Dashboard Analyzer
 
-European car dashboard error recognition using AI vision models.
+European car dashboard error recognition using AI vision models (Google Gemini).
 
 ## Features
 
 - 🚗 **Dashboard Analysis**: Recognize 30+ dashboard indicators
-- 🌍 **European Focus**: EU standards, OBD-II codes, 8 languages
+- 🌍 **European Focus**: EU + UK standards, OBD-II codes, 8 languages
 - 🔴 **Severity Detection**: Critical/Warning/Info categorization
-- 💰 **Cost Estimation**: Repair cost estimates in EUR
+- 💰 **Cost Estimation**: Repair cost estimates in EUR (€) or GBP (£)
+- 🇬🇧 **UK Support**: Miles/mph for UK, km/h for EU
 - ⚡ **Fast & Reliable**: <2s response time with caching
 - 🐍 **Pure Python**: Python 3.10+ with async support
+- 🤖 **Powered by Gemini**: Google Gemini 1.5 Flash/Pro vision models
 
 ## Installation
 
@@ -31,7 +33,7 @@ import os
 
 # Initialize
 analyzer = DashboardAnalyzer(
-    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    gemini_api_key=os.getenv("GEMINI_API_KEY"),
     locale="en"
 )
 
@@ -110,8 +112,10 @@ analyzer = DashboardAnalyzer(locale="es-ES")
 Create a `.env` file:
 
 ```env
-OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
+
+Get your API key from: https://makersuite.google.com/app/apikey
 
 ### Programmatic Configuration
 
@@ -119,9 +123,9 @@ OPENAI_API_KEY=sk-...
 from dashboard_analyzer import AnalyzerConfig
 
 config = AnalyzerConfig(
-    openai_api_key="sk-...",
-    openai_model="gpt-4o",
-    locale="en",
+    gemini_api_key="your-gemini-api-key",
+    gemini_model="gemini-1.5-flash-002",  # or "gemini-1.5-pro-002"
+    locale="en",  # or "en-GB" for UK (miles/mph)
     market="europe",
     timeout=30,
     max_retries=3,
@@ -152,7 +156,7 @@ result.critical_warnings # List[str]
 # Metadata
 result.confidence        # 0.0 - 1.0
 result.processing_time   # seconds
-result.provider_used     # 'openai'
+result.provider_used     # 'gemini'
 result.timestamp         # datetime
 result.locale            # language code
 ```
@@ -259,13 +263,13 @@ Contributions welcome! Please read CONTRIBUTING.md
 
 ## Architecture: Balanced Approach
 
-### Why Not Just OpenAI?
+### Why Not Just Gemini?
 
-**OpenAI GPT-4o Vision already recognizes dashboard indicators!** So why the knowledge base?
+**Google Gemini Vision already recognizes dashboard indicators!** So why the knowledge base?
 
 ```
 ┌─────────────────────────────────────────────┐
-│     OpenAI GPT-4o Vision (AI Recognition)   │
+│    Google Gemini Vision (AI Recognition)    │
 │     ✅ Identifies indicators               │
 │     ✅ Determines colors                   │
 │     ✅ Explains meanings                   │
@@ -283,32 +287,34 @@ Contributions welcome! Please read CONTRIBUTING.md
 
 ### What Knowledge Base Provides
 
-**NOT Duplication:** We don't duplicate what OpenAI knows.
+**NOT Duplication:** We don't duplicate what Gemini knows.
 
 **ONLY Essentials:**
 1. **OBD-II Diagnostic Codes** - AI doesn't consistently provide correct codes
 2. **Cost-Effective Localization** - Pre-translated critical messages (EN, DE, FR, RU)
 3. **Urgency Mapping** - Safety-critical categorization
+4. **Regional Formatting** - Automatic units (UK: miles/mph, EU: km/h) and currency (£/€)
 
 ```python
-# OpenAI recognizes indicator
-result = openai_vision.analyze(image)
+# Gemini recognizes indicator
+result = gemini_vision.analyze(image)
 # Returns: "Oil pressure warning light is on"
 
 # Knowledge base enriches
 enriched = knowledge_base.enrich(result)
 # Adds:
-# - obd_codes: ["P0520", "P0521", "P0522"]
+# - obd_codes: ["P0520", "P0521", "P0522", "P0523", "P0524"]
 # - urgency: 5 (critical)
 # - localized_action: "SOFORT anhalten" (German)
 ```
 
 ### Benefits
 
-**vs Pure OpenAI:**
+**vs Pure Gemini:**
 - ✅ Structured OBD-II codes for diagnostic tools
 - ✅ 90% cheaper localization (no API calls)
 - ✅ Consistent urgency levels
+- ✅ Regional formatting (UK miles vs EU km)
 
 **vs Full Knowledge Base:**
 - ✅ 10x simpler codebase
@@ -374,6 +380,7 @@ Test coverage:
 ## Performance
 
 - **Knowledge Base Loading**: <100ms
-- **Image Analysis**: <2s (with OpenAI API)
+- **Image Analysis**: <2s (with Gemini Flash), <3s (with Gemini Pro)
 - **Caching**: SHA256-based, 15min TTL
 - **Localization**: Instant (no API calls)
+- **Cost per Analysis**: ~$0.002 (Gemini Flash) or ~$0.01 (Gemini Pro)

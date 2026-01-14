@@ -5,7 +5,7 @@ import pytest
 
 @pytest.fixture
 def mock_openai_response():
-    """Mock OpenAI vision API response."""
+    """Mock Gemini vision API response (fixture name kept for compatibility)."""
     return """
 {
   "photoType": "dashboard",
