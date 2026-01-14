@@ -40,6 +40,86 @@
     "tire_pressure": {
       "name": "Low Tire Pressure",
       "action": "Check all tire pressures"
+    },
+    "adblue_warning": {
+      "name": "AdBlue / SCR System Warning",
+      "action": "Refill AdBlue within 500-1000 km or vehicle will not start"
+    },
+    "lane_assist": {
+      "name": "Lane Assist Warning",
+      "action": "Clean windshield camera area, check system settings"
+    },
+    "blind_spot": {
+      "name": "Blind Spot Monitoring Fault",
+      "action": "Clean sensors on rear bumper, check system"
+    },
+    "parking_sensors": {
+      "name": "Parking Sensor Fault",
+      "action": "Clean sensors on bumpers, system may work partially"
+    },
+    "adaptive_cruise": {
+      "name": "Adaptive Cruise Control Fault",
+      "action": "Clean front radar sensor, check system"
+    },
+    "pre_collision": {
+      "name": "Pre-Collision System Warning",
+      "action": "Clean sensors, system may still provide warnings"
+    },
+    "low_washer_fluid": {
+      "name": "Low Washer Fluid",
+      "action": "Top up windshield washer fluid reservoir"
+    },
+    "door_ajar": {
+      "name": "Door Ajar Warning",
+      "action": "Check all doors and trunk are properly closed"
+    },
+    "fuel_cap": {
+      "name": "Fuel Cap Warning",
+      "action": "Tighten fuel cap, may need replacement"
+    },
+    "transmission": {
+      "name": "Transmission Warning",
+      "action": "Reduce load, drive carefully to service, avoid towing"
+    },
+    "awd_4wd": {
+      "name": "AWD/4WD System Warning",
+      "action": "Vehicle may operate in 2WD mode, drive carefully"
+    },
+    "hill_descent": {
+      "name": "Hill Descent Control Fault",
+      "action": "Use manual braking on steep descents"
+    },
+    "hybrid_system": {
+      "name": "Hybrid System Warning",
+      "action": "Vehicle may operate in ICE-only mode, drive to service"
+    },
+    "ev_battery": {
+      "name": "EV Battery Warning",
+      "action": "Reduce power usage, charge immediately if possible"
+    },
+    "coolant_level": {
+      "name": "Low Coolant Level",
+      "action": "Check coolant level when engine cool, top up if needed"
+    },
+    "exhaust_filter": {
+      "name": "Exhaust Filter / GPF Warning",
+      "action": "Drive at higher RPM for 15-20 minutes to regenerate"
+    },
+    "stability_control": {
+      "name": "Stability Control Warning",
+      "action": "Normal driving possible but reduced safety in emergency"
+    },
+    "seatbelt_warning": {
+      "name": "Seatbelt Warning",
+      "action": "Fasten seatbelt"
+    },
+    "fog_lights": {
+      "name": "Fog Lights",
+      "action": "Normal operation indicator"
+    },
+    "high_beam": {
+      "name": "High Beam Indicator",
+      "action": "Normal operation indicator"
     }
   }
 }

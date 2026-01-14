@@ -40,6 +40,86 @@
     "tire_pressure": {
       "name": "Pression des pneus faible",
       "action": "Vérifier toutes les pressions"
+    },
+    "adblue_warning": {
+      "name": "AdBlue / SCR Système Avertissement",
+      "action": "Remplir AdBlue dans 500-1000 km sinon véhicule ne démarrera pas"
+    },
+    "lane_assist": {
+      "name": "Aide au maintien de trajectoire",
+      "action": "Nettoyer la caméra pare-brise, vérifier les paramètres système"
+    },
+    "blind_spot": {
+      "name": "Détection angle mort Défaut",
+      "action": "Nettoyer les capteurs sur le pare-chocs arrière, vérifier le système"
+    },
+    "parking_sensors": {
+      "name": "Capteurs de stationnement Défaut",
+      "action": "Nettoyer les capteurs sur les pare-chocs, système peut fonctionner partiellement"
+    },
+    "adaptive_cruise": {
+      "name": "Régulateur adaptatif Défaut",
+      "action": "Nettoyer le capteur radar avant, vérifier le système"
+    },
+    "pre_collision": {
+      "name": "Système anti-collision Avertissement",
+      "action": "Nettoyer les capteurs, système peut encore avertir"
+    },
+    "low_washer_fluid": {
+      "name": "Lave-glace faible",
+      "action": "Remplir le réservoir de lave-glace"
+    },
+    "door_ajar": {
+      "name": "Porte ouverte",
+      "action": "Vérifier que toutes les portes et le coffre sont bien fermés"
+    },
+    "fuel_cap": {
+      "name": "Bouchon de réservoir",
+      "action": "Serrer le bouchon, peut nécessiter remplacement"
+    },
+    "transmission": {
+      "name": "Transmission Avertissement",
+      "action": "Réduire la charge, conduire prudemment au garage, éviter remorquage"
+    },
+    "awd_4wd": {
+      "name": "Transmission intégrale Avertissement",
+      "action": "Véhicule peut fonctionner en 2WD, conduire prudemment"
+    },
+    "hill_descent": {
+      "name": "Contrôle descente Défaut",
+      "action": "Utiliser freinage manuel sur descentes raides"
+    },
+    "hybrid_system": {
+      "name": "Système hybride Avertissement",
+      "action": "Véhicule peut fonctionner en mode thermique uniquement, aller au garage"
+    },
+    "ev_battery": {
+      "name": "Batterie VE Avertissement",
+      "action": "Réduire consommation, charger immédiatement si possible"
+    },
+    "coolant_level": {
+      "name": "Niveau de liquide de refroidissement faible",
+      "action": "Vérifier niveau quand moteur froid, compléter si nécessaire"
+    },
+    "exhaust_filter": {
+      "name": "Filtre à particules / GPF Avertissement",
+      "action": "Rouler à régime plus élevé 15-20 minutes pour régénération"
+    },
+    "stability_control": {
+      "name": "Contrôle de stabilité Avertissement",
+      "action": "Conduite normale possible mais sécurité réduite en urgence"
+    },
+    "seatbelt_warning": {
+      "name": "Avertissement ceinture",
+      "action": "Attacher la ceinture de sécurité"
+    },
+    "fog_lights": {
+      "name": "Feux de brouillard",
+      "action": "Indicateur de fonctionnement normal"
+    },
+    "high_beam": {
+      "name": "Indicateur feux de route",
+      "action": "Indicateur de fonctionnement normal"
     }
   }
 }

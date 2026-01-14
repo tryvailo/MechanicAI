@@ -40,6 +40,86 @@
     "tire_pressure": {
       "name": "Reifendruckkontrolle",
       "action": "Alle Reifendrücke prüfen"
+    },
+    "adblue_warning": {
+      "name": "AdBlue / SCR System Warnung",
+      "action": "AdBlue innerhalb von 500-1000 km nachfüllen, sonst startet Fahrzeug nicht"
+    },
+    "lane_assist": {
+      "name": "Spurassistent Warnung",
+      "action": "Frontkamera reinigen, Systemeinstellungen prüfen"
+    },
+    "blind_spot": {
+      "name": "Toter Winkel System Fehler",
+      "action": "Sensoren an Heckstoßstange reinigen, System prüfen"
+    },
+    "parking_sensors": {
+      "name": "Einparkhilfe Fehler",
+      "action": "Sensoren an Stoßstangen reinigen, System funktioniert möglicherweise teilweise"
+    },
+    "adaptive_cruise": {
+      "name": "Adaptive Geschwindigkeitsregelung Fehler",
+      "action": "Frontradarsensor reinigen, System prüfen"
+    },
+    "pre_collision": {
+      "name": "Kollisionswarnsystem Warnung",
+      "action": "Sensoren reinigen, System kann weiterhin warnen"
+    },
+    "low_washer_fluid": {
+      "name": "Scheibenwaschwasser niedrig",
+      "action": "Scheibenwaschwasserbehälter nachfüllen"
+    },
+    "door_ajar": {
+      "name": "Tür nicht geschlossen",
+      "action": "Alle Türen und Kofferraum auf ordnungsgemäßen Verschluss prüfen"
+    },
+    "fuel_cap": {
+      "name": "Tankdeckel Warnung",
+      "action": "Tankdeckel festziehen, möglicherweise Ersatz nötig"
+    },
+    "transmission": {
+      "name": "Getriebe Warnung",
+      "action": "Belastung reduzieren, vorsichtig zur Werkstatt fahren, Abschleppen vermeiden"
+    },
+    "awd_4wd": {
+      "name": "Allradantrieb System Warnung",
+      "action": "Fahrzeug kann im 2WD-Modus fahren, vorsichtig fahren"
+    },
+    "hill_descent": {
+      "name": "Bergabfahrhilfe Fehler",
+      "action": "Bei steilen Abfahrten manuell bremsen"
+    },
+    "hybrid_system": {
+      "name": "Hybrid System Warnung",
+      "action": "Fahrzeug kann nur mit Verbrennungsmotor fahren, zur Werkstatt"
+    },
+    "ev_battery": {
+      "name": "E-Auto Batterie Warnung",
+      "action": "Leistung reduzieren, sofort aufladen wenn möglich"
+    },
+    "coolant_level": {
+      "name": "Kühlmittel niedrig",
+      "action": "Kühlmittelstand bei kaltem Motor prüfen, nachfüllen falls nötig"
+    },
+    "exhaust_filter": {
+      "name": "Abgasfilter / GPF Warnung",
+      "action": "15-20 Minuten bei höherer Drehzahl fahren zur Regeneration"
+    },
+    "stability_control": {
+      "name": "Fahrdynamikregelung Warnung",
+      "action": "Normale Fahrt möglich, aber reduzierte Sicherheit im Notfall"
+    },
+    "seatbelt_warning": {
+      "name": "Gurtwarnung",
+      "action": "Sicherheitsgurt anlegen"
+    },
+    "fog_lights": {
+      "name": "Nebelscheinwerfer",
+      "action": "Normaler Betriebsanzeiger"
+    },
+    "high_beam": {
+      "name": "Fernlicht Anzeige",
+      "action": "Normaler Betriebsanzeiger"
     }
   }
 }

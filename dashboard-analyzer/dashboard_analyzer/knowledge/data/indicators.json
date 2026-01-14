@@ -1,8 +1,9 @@
 {
   "metadata": {
-    "version": "1.0",
+    "version": "2.0",
     "description": "Lightweight indicator knowledge base - OBD codes and localization only",
-    "last_updated": "2026-01-12"
+    "last_updated": "2026-01-14",
+    "total_indicators": 35
   },
   "indicators": {
     "oil_pressure": {
@@ -78,6 +79,106 @@
     "low_fuel": {
       "obd_codes": [],
       "urgency": 2,
+      "category": "info"
+    },
+    "adblue_warning": {
+      "obd_codes": ["P20EE", "P20EF", "P20F0", "P20F1", "P207F"],
+      "urgency": 3,
+      "category": "warning"
+    },
+    "lane_assist": {
+      "obd_codes": ["C1A00", "C1A01", "C1A02"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "blind_spot": {
+      "obd_codes": ["C1B00", "C1B01", "C1B02"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "parking_sensors": {
+      "obd_codes": ["C1C00", "C1C01"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "adaptive_cruise": {
+      "obd_codes": ["C1D00", "C1D01", "C1D02"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "pre_collision": {
+      "obd_codes": ["C1E00", "C1E01"],
+      "urgency": 3,
+      "category": "warning"
+    },
+    "low_washer_fluid": {
+      "obd_codes": [],
+      "urgency": 1,
+      "category": "info"
+    },
+    "door_ajar": {
+      "obd_codes": [],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "fuel_cap": {
+      "obd_codes": ["P0455", "P0456", "P0457"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "transmission": {
+      "obd_codes": ["P0700", "P0701", "P0702", "P0703", "P0704", "P0705"],
+      "urgency": 4,
+      "category": "critical"
+    },
+    "awd_4wd": {
+      "obd_codes": ["C1200", "C1201", "C1202"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "hill_descent": {
+      "obd_codes": ["C1300", "C1301"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "hybrid_system": {
+      "obd_codes": ["P0A80", "P0A81", "P0A82", "P0A83"],
+      "urgency": 4,
+      "category": "critical"
+    },
+    "ev_battery": {
+      "obd_codes": ["P0A00", "P0A01", "P0A02"],
+      "urgency": 4,
+      "category": "critical"
+    },
+    "coolant_level": {
+      "obd_codes": ["P0128", "P0129"],
+      "urgency": 3,
+      "category": "warning"
+    },
+    "exhaust_filter": {
+      "obd_codes": ["P2002", "P2003", "P2004"],
+      "urgency": 2,
+      "category": "warning"
+    },
+    "stability_control": {
+      "obd_codes": ["C1200", "C1201", "C1202", "C1203"],
+      "urgency": 3,
+      "category": "warning"
+    },
+    "seatbelt_warning": {
+      "obd_codes": [],
+      "urgency": 1,
+      "category": "info"
+    },
+    "fog_lights": {
+      "obd_codes": [],
+      "urgency": 1,
+      "category": "info"
+    },
+    "high_beam": {
+      "obd_codes": [],
+      "urgency": 1,
       "category": "info"
     }
   }
